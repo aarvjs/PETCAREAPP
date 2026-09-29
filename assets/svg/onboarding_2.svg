@@ -1,0 +1,18 @@
+<svg width="320" height="260" viewBox="0 0 320 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="160" cy="130" r="110" fill="#F1EEFF"/>
+  <circle cx="160" cy="130" r="85" fill="#7567E8" fill-opacity="0.2"/>
+  <!-- Cute Cat Illustration -->
+  <circle cx="160" cy="130" r="42" fill="#8ED8F8"/>
+  <polygon points="125,100 135,70 150,92" fill="#8ED8F8"/>
+  <polygon points="195,100 185,70 170,92" fill="#8ED8F8"/>
+  <circle cx="145" cy="125" r="4" fill="#25242A"/>
+  <circle cx="175" cy="125" r="4" fill="#25242A"/>
+  <polygon points="160,132 156,138 164,138" fill="#7567E8"/>
+  <!-- Calendar & Clock Widget -->
+  <g transform="translate(50, 45)">
+    <rect width="64" height="64" rx="16" fill="#FFFFFF" stroke="#7567E8" stroke-width="3"/>
+    <rect width="64" height="20" rx="12" fill="#7567E8"/>
+    <circle cx="32" cy="42" r="12" fill="#EAF8FE"/>
+    <path d="M32 35V42H37" stroke="#7567E8" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>
