@@ -5,6 +5,7 @@ class AppAssets {
   static const String _imgPath = 'assets/images';
 
   static const String logoPaw = '$_svgPath/logo_paw.svg';
+  static const String splashPawLogo = '$_imgPath/splash_paw_logo.jpg';
   static const String bgCurveTop = '$_svgPath/bg_curve_top.svg';
   static const String bgBlob1 = '$_svgPath/bg_blob_1.svg';
   static const String bgBlob2 = '$_svgPath/bg_blob_2.svg';

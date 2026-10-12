@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../config/app_config.dart';
 import '../constants/app_assets.dart';
 import '../constants/app_colors.dart';
+import '../models/business_model.dart';
 import '../routes/app_routes.dart';
+import '../services/auth_service.dart';
+import '../services/shop_service.dart';
 
 class AppDrawer extends StatelessWidget {
   final int selectedIndex;
@@ -16,19 +20,46 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final menuItems = [
-      {'icon': Icons.home_rounded, 'title': 'Home', 'index': 0},
-      {'icon': Icons.shopping_bag_rounded, 'title': 'Shop', 'index': 1},
-      {'icon': Icons.grid_view_rounded, 'title': 'Categories', 'index': 1},
-      {'icon': Icons.pets_rounded, 'title': 'My Pets', 'index': 4},
-      {'icon': Icons.medical_services_rounded, 'title': 'Clinic', 'index': 2},
-      {'icon': Icons.calendar_month_rounded, 'title': 'Appointments', 'index': 2},
-      {'icon': Icons.receipt_long_rounded, 'title': 'Orders', 'index': 3},
-      {'icon': Icons.favorite_rounded, 'title': 'Favorites', 'index': 1},
-      {'icon': Icons.notifications_rounded, 'title': 'Notifications', 'index': 0},
-      {'icon': Icons.settings_rounded, 'title': 'Settings', 'index': 4},
-      {'icon': Icons.help_outline_rounded, 'title': 'Help & Support', 'index': 4},
-    ];
+    final user = AuthService.instance.currentUser;
+    final profile = AuthService.instance.currentUserProfile;
+    final businessName = ShopService.instance.currentBusiness?.name ?? 'Healthy Paws';
+
+    final displayName = (profile?.name != null && profile!.name!.trim().isNotEmpty)
+        ? profile.name!
+        : ((user?.displayName != null && user!.displayName!.trim().isNotEmpty)
+            ? user.displayName!
+            : 'Valued Pet Parent');
+
+    final displayPhone = (profile?.phoneNumber != null && profile!.phoneNumber.trim().isNotEmpty)
+        ? profile.phoneNumber
+        : (user?.phoneNumber ?? 'Online Customer');
+
+    final exp = ShopService.instance.experience;
+    final List<Map<String, dynamic>> menuItems;
+
+    if (exp == AppExperience.clinicOnly) {
+      menuItems = [
+        {'icon': Icons.local_hospital_rounded, 'title': 'Clinic Home', 'index': 0},
+        {'icon': Icons.medical_services_rounded, 'title': 'Clinical Services', 'index': 1},
+        {'icon': Icons.calendar_today_rounded, 'title': 'My Appointments', 'index': 2},
+        {'icon': Icons.person_rounded, 'title': 'My Profile', 'index': 3},
+      ];
+    } else if (exp == AppExperience.ecommerceOnly) {
+      menuItems = [
+        {'icon': Icons.home_rounded, 'title': 'Home Store', 'index': 0},
+        {'icon': Icons.shopping_bag_rounded, 'title': 'Shop Catalog', 'index': 1},
+        {'icon': Icons.shopping_cart_rounded, 'title': 'My Cart', 'index': 2},
+        {'icon': Icons.person_rounded, 'title': 'My Profile', 'index': 3},
+      ];
+    } else {
+      menuItems = [
+        {'icon': Icons.home_rounded, 'title': 'Home', 'index': 0},
+        {'icon': Icons.shopping_bag_rounded, 'title': 'Shop Catalog', 'index': 1},
+        {'icon': Icons.medical_services_rounded, 'title': 'Veterinary Clinic', 'index': 2},
+        {'icon': Icons.shopping_cart_rounded, 'title': 'My Cart', 'index': 3},
+        {'icon': Icons.person_rounded, 'title': 'My Profile', 'index': 4},
+      ];
+    }
 
     return Drawer(
       width: 290,
@@ -45,7 +76,7 @@ class AppDrawer extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primaryPurple.withValues(alpha: 0.12),
+                  color: AppColors.mainText.withValues(alpha: 0.08),
                   blurRadius: 32,
                   offset: const Offset(8, 0),
                 ),
@@ -58,21 +89,10 @@ class AppDrawer extends StatelessWidget {
                   top: -20,
                   right: -20,
                   child: Opacity(
-                    opacity: 0.08,
+                    opacity: 0.04,
                     child: SvgPicture.asset(
                       AppAssets.logoPaw,
                       width: 160,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 40,
-                  left: -30,
-                  child: Opacity(
-                    opacity: 0.06,
-                    child: SvgPicture.asset(
-                      AppAssets.logoPaw,
-                      width: 180,
                     ),
                   ),
                 ),
@@ -89,25 +109,21 @@ class AppDrawer extends StatelessWidget {
                         child: Row(
                           children: [
                             Container(
-                              width: 54,
-                              height: 54,
+                              width: 52,
+                              height: 52,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
+                                color: AppColors.softSage,
                                 border: Border.all(
-                                  color: AppColors.skyBlue,
-                                  width: 2,
+                                  color: AppColors.sageGreen,
+                                  width: 1.5,
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primaryPurple.withValues(alpha: 0.15),
-                                    blurRadius: 10,
-                                  ),
-                                ],
                               ),
-                              child: ClipOval(
-                                child: Image.asset(
-                                  AppAssets.userAvatar,
-                                  fit: BoxFit.cover,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.pets_rounded,
+                                  color: AppColors.sageGreen,
+                                  size: 26,
                                 ),
                               ),
                             ),
@@ -115,23 +131,26 @@ class AppDrawer extends StatelessWidget {
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Text(
-                                    'Sarah Jenkins',
-                                    style: TextStyle(
+                                    displayName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
                                       color: AppColors.mainText,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                  SizedBox(height: 2),
+                                  const SizedBox(height: 2),
                                   Text(
-                                    'sarah.jenkins@example.com',
-                                    style: TextStyle(
+                                    displayPhone,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
                                       color: AppColors.secondaryText,
                                       fontSize: 12,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
@@ -140,9 +159,40 @@ class AppDrawer extends StatelessWidget {
                         ),
                       ),
 
-                      const SizedBox(height: 20),
-                      const Divider(color: AppColors.surfaceContainer, height: 1),
-                      const SizedBox(height: 12),
+                      // Business & Shop ID Pill
+                      Container(
+                        margin: const EdgeInsets.only(top: 14, left: 20, right: 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.parchment,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.outlineVariant.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.storefront_rounded, size: 16, color: AppColors.sageGreen),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '$businessName • ${AppConfig.shopId}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.mainText,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+                      const Divider(color: AppColors.surfaceContainerLow, height: 1),
+                      const SizedBox(height: 8),
 
                       // Menu Items
                       Expanded(
@@ -152,7 +202,7 @@ class AppDrawer extends StatelessWidget {
                           itemBuilder: (context, index) {
                             final item = menuItems[index];
                             final itemNavIndex = item['index'] as int;
-                            final isSelected = selectedIndex == itemNavIndex && index < 5;
+                            final isSelected = selectedIndex == itemNavIndex;
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 4),
@@ -164,29 +214,22 @@ class AppDrawer extends StatelessWidget {
                                     onItemSelected(itemNavIndex);
                                   },
                                   borderRadius: BorderRadius.circular(16),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
+                                  child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 11),
+                                        horizontal: 16, vertical: 12),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? AppColors.lightSky
+                                          ? AppColors.sageGreen.withValues(alpha: 0.1)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(16),
-                                      border: isSelected
-                                          ? Border.all(
-                                              color: AppColors.skyBlue.withValues(alpha: 0.5),
-                                              width: 1,
-                                            )
-                                          : null,
                                     ),
                                     child: Row(
                                       children: [
                                         Icon(
                                           item['icon'] as IconData,
-                                          size: 20,
+                                          size: 22,
                                           color: isSelected
-                                              ? AppColors.primaryPurple
+                                              ? AppColors.sageGreen
                                               : AppColors.secondaryText,
                                         ),
                                         const SizedBox(width: 14),
@@ -194,12 +237,12 @@ class AppDrawer extends StatelessWidget {
                                           item['title'] as String,
                                           style: TextStyle(
                                             color: isSelected
-                                                ? AppColors.primaryPurple
+                                                ? AppColors.sageGreen
                                                 : AppColors.mainText,
                                             fontSize: 14,
                                             fontWeight: isSelected
-                                                ? FontWeight.w700
-                                                : FontWeight.w500,
+                                                ? FontWeight.w800
+                                                : FontWeight.w600,
                                           ),
                                         ),
                                       ],
@@ -212,7 +255,7 @@ class AppDrawer extends StatelessWidget {
                         ),
                       ),
 
-                      const Divider(color: AppColors.surfaceContainer, height: 1),
+                      const Divider(color: AppColors.surfaceContainerLow, height: 1),
 
                       // Logout Item Bottom
                       Padding(
@@ -220,30 +263,36 @@ class AppDrawer extends StatelessWidget {
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
-                            onTap: () {
+                            onTap: () async {
                               Navigator.pop(context);
-                              Navigator.pushReplacementNamed(context, AppRoutes.login);
+                              await AuthService.instance.signOut();
+                              if (!context.mounted) return;
+                              Navigator.pushNamedAndRemoveUntil(
+                                context,
+                                AppRoutes.login,
+                                (route) => false,
+                              );
                             },
                             borderRadius: BorderRadius.circular(16),
                             child: Container(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               decoration: BoxDecoration(
-                                color: AppColors.errorRed.withValues(alpha: 0.08),
+                                color: AppColors.warmCoral.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: Row(
-                                children: const [
+                              child: const Row(
+                                children: [
                                   Icon(
                                     Icons.logout_rounded,
                                     size: 20,
-                                    color: AppColors.errorRed,
+                                    color: AppColors.warmCoral,
                                   ),
                                   SizedBox(width: 14),
                                   Text(
                                     'Logout',
                                     style: TextStyle(
-                                      color: AppColors.errorRed,
+                                      color: AppColors.warmCoral,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
                                     ),

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "282276411469",
+    "project_id": "pet-clinic-47727",
+    "storage_bucket": "pet-clinic-47727.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:282276411469:android:29c426684667e237238404",
+        "android_client_info": {
+          "package_name": "com.healthypawspetclinic.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGu4ZT6E_fDGMT-G3Q-EzJ1s-UWFGHeQY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

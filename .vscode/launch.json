@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Healthy Paws (Default SHOP-D9E8)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define=SHOP_ID=SHOP-D9E8"
+      ]
+    },
+    {
+      "name": "Healthy Paws (E-Commerce Only Test)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define=SHOP_ID=SHOP-ECOM"
+      ]
+    },
+    {
+      "name": "Healthy Paws (Clinic Only Test)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define=SHOP_ID=SHOP-CLINIC"
+      ]
+    },
+    {
+      "name": "Healthy Paws (Production Release Build)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "toolArgs": [
+        "--dart-define=SHOP_ID=SHOP-D9E8"
+      ]
+    }
+  ]
+}

@@ -5,10 +5,16 @@ import '../../../core/constants/app_colors.dart';
 
 class PromoBanner extends StatelessWidget {
   final VoidCallback onExploreClinicTap;
+  final String title;
+  final String subtitle;
+  final String buttonLabel;
 
   const PromoBanner({
     super.key,
     required this.onExploreClinicTap,
+    this.title = 'Love Them. Care For Them.',
+    this.subtitle = 'Professional nutrition and care for every pet.',
+    this.buttonLabel = 'Explore Clinic',
   });
 
   @override
@@ -33,8 +39,8 @@ class PromoBanner extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      AppColors.mainText.withValues(alpha: 0.65),
-                      AppColors.mainText.withValues(alpha: 0.15),
+                      AppColors.mainText.withValues(alpha: 0.7),
+                      AppColors.mainText.withValues(alpha: 0.2),
                       Colors.transparent,
                     ],
                     begin: Alignment.centerLeft,
@@ -50,9 +56,9 @@ class PromoBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Love Them. Care For Them.',
-                      style: TextStyle(
+                    Text(
+                      title,
+                      style: const TextStyle(
                         color: AppColors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -70,7 +76,7 @@ class PromoBanner extends StatelessWidget {
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 220),
                       child: Text(
-                        'Professional care for every stage of their life.',
+                        subtitle,
                         style: TextStyle(
                           color: AppColors.white.withValues(alpha: 0.9),
                           fontSize: 12,
@@ -81,7 +87,7 @@ class PromoBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
 
-                    // Explore Clinic Button
+                    // Explore Button
                     GestureDetector(
                       onTap: onExploreClinicTap,
                       child: ClipRRect(
@@ -92,11 +98,11 @@ class PromoBanner extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryPurple,
+                              color: AppColors.sageGreen,
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.primaryPurple.withValues(alpha: 0.3),
+                                  color: AppColors.sageGreen.withValues(alpha: 0.35),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -104,17 +110,17 @@ class PromoBanner extends StatelessWidget {
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
+                              children: [
                                 Text(
-                                  'Explore Clinic',
-                                  style: TextStyle(
+                                  buttonLabel,
+                                  style: const TextStyle(
                                     color: AppColors.white,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                SizedBox(width: 6),
-                                Icon(
+                                const SizedBox(width: 6),
+                                const Icon(
                                   Icons.arrow_forward_rounded,
                                   size: 14,
                                   color: AppColors.white,

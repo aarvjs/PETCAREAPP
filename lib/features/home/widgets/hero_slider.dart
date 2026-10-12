@@ -175,12 +175,12 @@ class _HeroSliderState extends State<HeroSlider> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 14, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primaryPurple,
+                                      color: AppColors.sageGreen,
                                       borderRadius: BorderRadius.circular(20),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: AppColors.primaryPurple
-                                              .withValues(alpha: 0.3),
+                                          color: AppColors.sageGreen
+                                              .withValues(alpha: 0.35),
                                           blurRadius: 10,
                                           offset: const Offset(0, 4),
                                         ),
@@ -234,8 +234,8 @@ class _HeroSliderState extends State<HeroSlider> {
               width: _currentIndex == index ? 22 : 6,
               decoration: BoxDecoration(
                 color: _currentIndex == index
-                    ? AppColors.primaryPurple
-                    : AppColors.softLavender,
+                    ? AppColors.sageGreen
+                    : AppColors.outlineVariant.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),

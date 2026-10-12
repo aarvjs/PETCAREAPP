@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/app_assets.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/shop_service.dart';
 
 class ClinicServiceItem {
   final String id;
   final String name;
   final String description;
   final String price;
-  final String image;
   final IconData icon;
 
   const ClinicServiceItem({
@@ -15,17 +14,18 @@ class ClinicServiceItem {
     required this.name,
     required this.description,
     required this.price,
-    required this.image,
     required this.icon,
   });
 }
 
 class ClinicScreen extends StatefulWidget {
   final bool isViewAllMode;
+  final VoidCallback? onNavigateToShop;
 
   const ClinicScreen({
     super.key,
     this.isViewAllMode = false,
+    this.onNavigateToShop,
   });
 
   @override
@@ -36,10 +36,9 @@ class _ClinicScreenState extends State<ClinicScreen> {
   static const List<ClinicServiceItem> allServices = [
     ClinicServiceItem(
       id: 'cs1',
-      name: 'Vaccination',
+      name: 'Vaccination & Immunization',
       description: 'Core & non-core vaccines for puppies, dogs, kittens & cats.',
       price: 'From ₹499',
-      image: AppAssets.onboardingVet,
       icon: Icons.vaccines_rounded,
     ),
     ClinicServiceItem(
@@ -47,7 +46,6 @@ class _ClinicScreenState extends State<ClinicScreen> {
       name: 'General Health Checkup',
       description: 'Comprehensive physical examination & vital signs monitoring.',
       price: 'From ₹799',
-      image: AppAssets.heroSlider3,
       icon: Icons.health_and_safety_rounded,
     ),
     ClinicServiceItem(
@@ -55,15 +53,13 @@ class _ClinicScreenState extends State<ClinicScreen> {
       name: 'Deworming & Parasite Care',
       description: 'Flea, tick & internal worm prevention treatments.',
       price: 'From ₹299',
-      image: AppAssets.catDog,
       icon: Icons.medication_rounded,
     ),
     ClinicServiceItem(
       id: 'cs4',
-      name: 'Pet Grooming & Spa',
+      name: 'Pet Grooming & Medicated Spa',
       description: 'Medicated bath, coat brushing, ear cleaning & styling.',
       price: 'From ₹999',
-      image: AppAssets.catDog,
       icon: Icons.content_cut_rounded,
     ),
     ClinicServiceItem(
@@ -71,285 +67,272 @@ class _ClinicScreenState extends State<ClinicScreen> {
       name: 'Dental Care & Cleaning',
       description: 'Tartar removal, breath freshening & oral health check.',
       price: 'From ₹599',
-      image: AppAssets.catCat,
       icon: Icons.clean_hands_rounded,
     ),
     ClinicServiceItem(
       id: 'cs6',
-      name: 'Pet Consultation & Diagnosis',
-      description: 'Expert veterinary diagnosis for illness & behavioral issues.',
+      name: 'Veterinary Consultation',
+      description: 'Expert diagnosis for illness & nutritional advice.',
       price: 'From ₹499',
-      image: AppAssets.heroSlider3,
       icon: Icons.medical_information_rounded,
     ),
-    ClinicServiceItem(
-      id: 'cs7',
-      name: 'Skin & Coat Treatment',
-      description: 'Allergy relief, itching treatment & nutritional care.',
-      price: 'From ₹699',
-      image: AppAssets.catDog,
-      icon: Icons.healing_rounded,
-    ),
-    ClinicServiceItem(
-      id: 'cs8',
-      name: 'Nail Trimming & Paw Care',
-      description: 'Safe claw clipping & moisturizing paw pad therapy.',
-      price: 'From ₹199',
-      image: AppAssets.catCat,
-      icon: Icons.pets_rounded,
-    ),
-    ClinicServiceItem(
-      id: 'cs9',
-      name: 'Preventive Healthcare Plan',
-      description: 'Annual wellness package including routine tests & supplements.',
-      price: 'From ₹1,499',
-      image: AppAssets.onboardingVet,
-      icon: Icons.shield_rounded,
-    ),
-    ClinicServiceItem(
-      id: 'cs10',
-      name: 'Pet Wellness Checkup',
-      description: 'Senior pet care & growth tracking for young pets.',
-      price: 'From ₹899',
-      image: AppAssets.heroSlider4,
-      icon: Icons.favorite_rounded,
-    ),
   ];
+
+  void _bookService(ClinicServiceItem service) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text(
+          'Book Clinic Appointment',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          'Confirm appointment for ${service.name} at ${ShopService.instance.currentBusiness?.name ?? "Healthy Paws Clinic"}?',
+          style: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.secondaryText)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Appointment request sent for ${service.name}!'),
+                  backgroundColor: AppColors.sageGreen,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.sageGreen,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Confirm Booking', style: TextStyle(color: AppColors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Clinic Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text(
-                    'Pet Healthcare Services',
-                    style: TextStyle(
-                      color: AppColors.mainText,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Icon(Icons.medical_services_rounded, color: AppColors.primaryPurple, size: 24),
-                ],
-              ),
-              const SizedBox(height: 16),
+        child: AnimatedBuilder(
+          animation: ShopService.instance,
+          builder: (context, _) {
+            final hasClinic = ShopService.instance.hasClinic;
+            final businessName = ShopService.instance.currentBusiness?.name ?? 'Healthy Paws Clinic';
 
-              // Emergency Triage Banner
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      AppColors.primaryPurple,
-                      AppColors.primaryContainer,
+            if (!hasClinic) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: const BoxDecoration(
+                          color: AppColors.parchment,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.medical_services_outlined,
+                          size: 40,
+                          color: AppColors.secondaryText,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Clinic Services Not Available',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.mainText,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '$businessName currently offers e-commerce pet products only.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.secondaryText,
+                          height: 1.4,
+                        ),
+                      ),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryPurple.withValues(alpha: 0.2),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.health_and_safety_rounded, color: AppColors.white, size: 36),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
+              );
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Clinic Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            '24/7 Veterinary Clinic',
+                        children: [
+                          const Text(
+                            'Clinic & Care',
                             style: TextStyle(
-                              color: AppColors.white,
-                              fontSize: 16,
+                              color: AppColors.mainText,
+                              fontSize: 22,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                          SizedBox(height: 2),
                           Text(
-                            'Certified healthcare for all pets',
-                            style: TextStyle(
-                              color: AppColors.white,
+                            businessName,
+                            style: const TextStyle(
+                              color: AppColors.secondaryText,
                               fontSize: 12,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Connecting to Clinic Desk...'),
-                            backgroundColor: AppColors.primaryPurple,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.white,
-                        foregroundColor: AppColors.primaryPurple,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.sageGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.verified_outlined, size: 14, color: AppColors.sageGreen),
+                            SizedBox(width: 4),
+                            Text(
+                              'Verified Vets',
+                              style: TextStyle(
+                                color: AppColors.sageGreen,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: const Text('Book Care', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Available Healthcare Services Title
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Available Healthcare Services',
-                    style: TextStyle(
-                      color: AppColors.mainText,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                    ),
+                    ],
                   ),
-                  Text(
-                    '${allServices.length} Services',
-                    style: const TextStyle(
-                      color: AppColors.secondaryText,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+
+                  const SizedBox(height: 16),
+
+                  // Services List
+                  Column(
+                    children: allServices.map((service) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppColors.outlineVariant.withValues(alpha: 0.35),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.mainText.withValues(alpha: 0.04),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: AppColors.softSage,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(
+                                service.icon,
+                                color: AppColors.sageGreen,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    service.name,
+                                    style: const TextStyle(
+                                      color: AppColors.mainText,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    service.description,
+                                    style: const TextStyle(
+                                      color: AppColors.secondaryText,
+                                      fontSize: 11,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    service.price,
+                                    style: const TextStyle(
+                                      color: AppColors.sageGreen,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            ElevatedButton(
+                              onPressed: () => _bookService(service),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.sageGreen,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'Book',
+                                style: TextStyle(
+                                  color: AppColors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
+
+                  const SizedBox(height: 100),
                 ],
               ),
-              const SizedBox(height: 14),
-
-              // Services List
-              Column(
-                children: allServices.map((service) {
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AppColors.skyBlue.withValues(alpha: 0.3),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.mainText.withValues(alpha: 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        // Service Icon Box
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: AppColors.lightSky,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(
-                            service.icon,
-                            color: AppColors.primaryPurple,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-
-                        // Service Content
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                service.name,
-                                style: const TextStyle(
-                                  color: AppColors.mainText,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                service.description,
-                                style: const TextStyle(
-                                  color: AppColors.secondaryText,
-                                  fontSize: 12,
-                                  height: 1.3,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                service.price,
-                                style: const TextStyle(
-                                  color: AppColors.primaryPurple,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Book Action Button
-                        ElevatedButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${service.name} booked successfully!'),
-                                backgroundColor: AppColors.successGreen,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.lightSky,
-                            foregroundColor: AppColors.primaryPurple,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Text(
-                            'Book',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-
-              const SizedBox(height: 100),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

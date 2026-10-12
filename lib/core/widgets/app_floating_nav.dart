@@ -2,6 +2,22 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../cart/cart_service.dart';
 import '../constants/app_colors.dart';
+import '../models/business_model.dart';
+import '../services/shop_service.dart';
+
+class NavTabItem {
+  final int index;
+  final IconData icon;
+  final String label;
+  final bool isCart;
+
+  const NavTabItem({
+    required this.index,
+    required this.icon,
+    required this.label,
+    this.isCart = false,
+  });
+}
 
 class AppFloatingNav extends StatelessWidget {
   final int selectedIndex;
@@ -15,18 +31,58 @@ class AppFloatingNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final navItems = [
-      {'icon': Icons.home_rounded, 'label': 'Home'},
-      {'icon': Icons.shopping_bag_rounded, 'label': 'Shop'},
-      {'icon': Icons.medical_services_rounded, 'label': 'Clinic'},
-      {'icon': Icons.shopping_cart_rounded, 'label': 'Cart'},
-      {'icon': Icons.person_rounded, 'label': 'Profile'},
-    ];
-
     return AnimatedBuilder(
-      animation: CartService.instance,
+      animation: Listenable.merge([CartService.instance, ShopService.instance]),
       builder: (context, child) {
+        final exp = ShopService.instance.experience;
         final cartCount = CartService.instance.totalItemCount;
+
+        List<NavTabItem> navItems;
+
+        if (exp == AppExperience.clinicOnly) {
+          // Dedicated Clinic Only Experience
+          navItems = const [
+            NavTabItem(index: 0, icon: Icons.local_hospital_rounded, label: 'Clinic'),
+            NavTabItem(index: 1, icon: Icons.medical_services_rounded, label: 'Services'),
+            NavTabItem(index: 2, icon: Icons.calendar_today_rounded, label: 'Bookings'),
+            NavTabItem(index: 3, icon: Icons.person_rounded, label: 'Profile'),
+          ];
+        } else if (exp == AppExperience.ecommerceOnly) {
+          // Dedicated E-Commerce Only Experience
+          navItems = [
+            const NavTabItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
+            const NavTabItem(index: 1, icon: Icons.shopping_bag_rounded, label: 'Shop'),
+            const NavTabItem(
+              index: 2,
+              icon: Icons.shopping_cart_rounded,
+              label: 'Cart',
+              isCart: true,
+            ),
+            const NavTabItem(
+              index: 3,
+              icon: Icons.person_rounded,
+              label: 'Profile',
+            ),
+          ];
+        } else {
+          // Combined Mode (Both E-Commerce and Clinic active & published)
+          navItems = [
+            const NavTabItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
+            const NavTabItem(index: 1, icon: Icons.shopping_bag_rounded, label: 'Shop'),
+            const NavTabItem(index: 2, icon: Icons.medical_services_rounded, label: 'Clinic'),
+            const NavTabItem(
+              index: 3,
+              icon: Icons.shopping_cart_rounded,
+              label: 'Cart',
+              isCart: true,
+            ),
+            const NavTabItem(
+              index: 4,
+              icon: Icons.person_rounded,
+              label: 'Profile',
+            ),
+          ];
+        }
 
         return Container(
           margin: const EdgeInsets.only(left: 14, right: 14, bottom: 16),
@@ -35,7 +91,7 @@ class AppFloatingNav extends StatelessWidget {
             clipBehavior: Clip.none,
             alignment: Alignment.bottomCenter,
             children: [
-              // Glass Capsule Background Surface
+              // Capsule Background Surface
               ClipRRect(
                 borderRadius: BorderRadius.circular(36),
                 child: BackdropFilter(
@@ -43,17 +99,17 @@ class AppFloatingNav extends StatelessWidget {
                   child: Container(
                     height: 64,
                     decoration: BoxDecoration(
-                      color: AppColors.white.withValues(alpha: 0.92),
+                      color: AppColors.white.withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(36),
                       border: Border.all(
-                        color: AppColors.white.withValues(alpha: 0.95),
-                        width: 1.5,
+                        color: AppColors.outlineVariant.withValues(alpha: 0.35),
+                        width: 1.2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primaryPurple.withValues(alpha: 0.12),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
+                          color: AppColors.mainText.withValues(alpha: 0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),
@@ -68,15 +124,12 @@ class AppFloatingNav extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     crossAxisAlignment: CrossAxisAlignment.end,
-                    children: List.generate(navItems.length, (index) {
-                      final isSelected = selectedIndex == index;
-                      final isClinic = index == 2;
-                      final isCart = index == 3;
-                      final item = navItems[index];
+                    children: navItems.map((tab) {
+                      final isSelected = selectedIndex == tab.index;
 
                       return Flexible(
                         child: GestureDetector(
-                          onTap: () => onItemSelected(index),
+                          onTap: () => onItemSelected(tab.index),
                           behavior: HitTestBehavior.opaque,
                           child: Container(
                             padding: const EdgeInsets.only(bottom: 6),
@@ -85,39 +138,24 @@ class AppFloatingNav extends StatelessWidget {
                               children: [
                                 // Icon Container with Smooth Floating Transition
                                 AnimatedContainer(
-                                  duration: const Duration(milliseconds: 250),
+                                  duration: const Duration(milliseconds: 220),
                                   curve: Curves.easeOutCubic,
                                   transform: Matrix4.translationValues(
                                     0,
-                                    isSelected ? -10 : (isClinic ? -4 : 0),
+                                    isSelected ? -8 : 0,
                                     0,
                                   ),
-                                  width: isClinic ? 48 : (isSelected ? 42 : 36),
-                                  height: isClinic ? 48 : (isSelected ? 42 : 36),
+                                  width: isSelected ? 42 : 36,
+                                  height: isSelected ? 42 : 36,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    gradient: (isSelected || isClinic)
-                                        ? LinearGradient(
-                                            colors: isSelected
-                                                ? [
-                                                    AppColors.primaryPurple,
-                                                    AppColors.primaryContainer,
-                                                  ]
-                                                : [
-                                                    AppColors.skyBlue,
-                                                    AppColors.lightSky,
-                                                  ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          )
-                                        : null,
-                                    color: (isSelected || isClinic) ? null : Colors.transparent,
+                                    color: isSelected ? AppColors.sageGreen : Colors.transparent,
                                     boxShadow: isSelected
                                         ? [
                                             BoxShadow(
-                                              color: AppColors.primaryPurple.withValues(alpha: 0.3),
-                                              blurRadius: 12,
-                                              offset: const Offset(0, 4),
+                                              color: AppColors.sageGreen.withValues(alpha: 0.35),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 3),
                                             ),
                                           ]
                                         : [],
@@ -127,49 +165,41 @@ class AppFloatingNav extends StatelessWidget {
                                     clipBehavior: Clip.none,
                                     children: [
                                       Icon(
-                                        item['icon'] as IconData,
-                                        size: isClinic ? 24 : (isSelected ? 22 : 20),
+                                        tab.icon,
+                                        size: isSelected ? 22 : 20,
                                         color: isSelected
                                             ? AppColors.white
-                                            : (isClinic
-                                                ? AppColors.primaryPurple
-                                                : AppColors.secondaryText),
+                                            : AppColors.secondaryText,
                                       ),
 
                                       // Cart Count Badge
-                                      if (isCart && cartCount > 0)
+                                      if (tab.isCart && cartCount > 0)
                                         Positioned(
                                           top: -2,
                                           right: -2,
-                                          child: AnimatedScale(
-                                            duration: const Duration(milliseconds: 200),
-                                            scale: 1.0,
-                                            child: Container(
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: BoxDecoration(
-                                                color: isSelected
-                                                    ? AppColors.skyBlue
-                                                    : AppColors.primaryPurple,
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: AppColors.white,
-                                                  width: 1.2,
-                                                ),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? AppColors.warmCoral
+                                                  : AppColors.warmCoral,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: AppColors.white,
+                                                width: 1.2,
                                               ),
-                                              constraints: const BoxConstraints(
-                                                minWidth: 16,
-                                                minHeight: 16,
-                                              ),
-                                              child: Text(
-                                                '$cartCount',
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  color: isSelected
-                                                      ? AppColors.primaryPurple
-                                                      : AppColors.white,
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.w900,
-                                                ),
+                                            ),
+                                            constraints: const BoxConstraints(
+                                              minWidth: 16,
+                                              minHeight: 16,
+                                            ),
+                                            child: Text(
+                                              '$cartCount',
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                color: AppColors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w900,
                                               ),
                                             ),
                                           ),
@@ -185,13 +215,13 @@ class AppFloatingNav extends StatelessWidget {
                                   duration: const Duration(milliseconds: 200),
                                   style: TextStyle(
                                     color: isSelected
-                                        ? AppColors.primaryPurple
+                                        ? AppColors.sageGreen
                                         : AppColors.secondaryText,
                                     fontSize: 10,
                                     fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                                   ),
                                   child: Text(
-                                    item['label'] as String,
+                                    tab.label,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -201,7 +231,7 @@ class AppFloatingNav extends StatelessWidget {
                           ),
                         ),
                       );
-                    }),
+                    }).toList(),
                   ),
                 ),
               ),

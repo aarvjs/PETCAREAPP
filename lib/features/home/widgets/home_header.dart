@@ -1,184 +1,190 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_assets.dart';
+import '../../../core/cart/cart_service.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/shop_service.dart';
 
 class HomeHeader extends StatelessWidget {
   final VoidCallback onOpenDrawer;
-  final VoidCallback onNotificationTap;
+  final VoidCallback onCartTap;
   final VoidCallback onProfileTap;
+  final VoidCallback? onNotificationTap;
 
   const HomeHeader({
     super.key,
     required this.onOpenDrawer,
-    required this.onNotificationTap,
+    required this.onCartTap,
     required this.onProfileTap,
+    this.onNotificationTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final business = ShopService.instance.currentBusiness;
+    final shopName = business?.name ?? 'Healthy Paws Pet Clinic';
+    final locationText = business?.city != null && business!.city!.isNotEmpty
+        ? '${business.city!}${business.state != null && business.state!.isNotEmpty ? ", ${business.state}" : ""}'
+        : 'Pet Clinic & Store';
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Left: Menu Icon + Location Info
-          Row(
-            children: [
-              // Hamburger Menu Button
-              InkWell(
-                onTap: onOpenDrawer,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.skyBlue.withValues(alpha: 0.4),
-                      width: 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryPurple.withValues(alpha: 0.06),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.notes_rounded,
-                    color: AppColors.mainText,
-                    size: 24,
-                  ),
-                ),
+          // Left: Menu Icon
+          InkWell(
+            onTap: onOpenDrawer,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border, width: 1),
               ),
+              child: const Icon(
+                Icons.menu_rounded,
+                color: AppColors.mainText,
+                size: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
 
-              const SizedBox(width: 12),
-
-              // Location Info Column
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(
-                        Icons.location_on_rounded,
-                        size: 14,
-                        color: AppColors.primaryPurple,
-                      ),
-                      SizedBox(width: 4),
-                      Text(
-                        'Swaroop Nagar',
-                        style: TextStyle(
+          // Center: Shop Name & Location (Flexible to prevent any overflow)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        shopName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
                           color: AppColors.mainText,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
                         ),
                       ),
-                      SizedBox(width: 2),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 16,
-                        color: AppColors.secondaryText,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 1),
-                  const Text(
-                    'Kanpur, Uttar Pradesh',
-                    style: TextStyle(
-                      color: AppColors.secondaryText,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.verified_rounded,
+                      size: 14,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 13,
+                      color: AppColors.accentCoral,
+                    ),
+                    const SizedBox(width: 2),
+                    Flexible(
+                      child: Text(
+                        locationText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.secondaryText,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
 
-          // Right: Notification & Profile Avatar
-          Row(
-            children: [
-              // Notification Icon with Unread Badge
-              InkWell(
-                onTap: onNotificationTap,
-                borderRadius: BorderRadius.circular(16),
+          // Right: Cart Button with live Badge
+          ListenableBuilder(
+            listenable: CartService.instance,
+            builder: (context, _) {
+              final count = CartService.instance.totalItemCount;
+
+              return InkWell(
+                onTap: onCartTap,
+                borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  width: 44,
-                  height: 44,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: AppColors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.skyBlue.withValues(alpha: 0.4),
-                      width: 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryPurple.withValues(alpha: 0.06),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border, width: 1),
                   ),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
                       const Icon(
-                        Icons.notifications_none_rounded,
+                        Icons.shopping_bag_outlined,
                         color: AppColors.mainText,
-                        size: 22,
+                        size: 20,
                       ),
-                      Positioned(
-                        top: 10,
-                        right: 12,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppColors.errorRed,
-                            shape: BoxShape.circle,
+                      if (count > 0)
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: AppColors.accentCoral,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              '$count',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: AppColors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
-              ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
 
-              const SizedBox(width: 10),
-
-              // Profile Avatar
-              GestureDetector(
-                onTap: onProfileTap,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.skyBlue,
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryPurple.withValues(alpha: 0.12),
-                        blurRadius: 10,
-                      ),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: Image.asset(
-                      AppAssets.userAvatar,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
+          // Profile Avatar Button
+          InkWell(
+            onTap: onProfileTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1),
               ),
-            ],
+              child: const Icon(
+                Icons.person_outline_rounded,
+                color: AppColors.primary,
+                size: 22,
+              ),
+            ),
           ),
         ],
       ),

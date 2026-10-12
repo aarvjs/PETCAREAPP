@@ -1,9 +1,10 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/shop_service.dart';
 import '../../core/widgets/app_button.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -25,7 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return regex.hasMatch(cleanValue);
   }
 
-  void _onContinuePressed() async {
+  void _onSendOtpPressed() async {
     setState(() {
       _errorMessage = null;
     });
@@ -33,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final phoneText = _phoneController.text.trim();
     if (!_validatePhoneNumber(phoneText)) {
       setState(() {
-        _errorMessage = AppStrings.invalidMobileError;
+        _errorMessage = 'Please enter a valid 10-digit mobile number (e.g. 9876543210)';
       });
       return;
     }
@@ -42,19 +43,69 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    // Abstraction point: In the next step, Firebase Phone Auth trigger will be hooked here.
-    await Future.delayed(const Duration(milliseconds: 400));
+    final formattedPhone = AuthService.instance.formatPhoneNumber(phoneText);
 
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-    });
+    await AuthService.instance.sendOtp(
+      phoneNumber: formattedPhone,
+      onCodeSent: (String verificationId, int? resendToken) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
 
-    final fullPhoneNumber = '+91 $phoneText';
-    Navigator.pushNamed(
-      context,
-      AppRoutes.otp,
-      arguments: fullPhoneNumber,
+        Navigator.pushNamed(
+          context,
+          AppRoutes.otp,
+          arguments: {
+            'phoneNumber': formattedPhone,
+            'verificationId': verificationId,
+            'resendToken': resendToken,
+          },
+        );
+      },
+      onError: (String errorMessage) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _errorMessage = errorMessage;
+        });
+      },
+      onAutoVerified: (credential) async {
+        if (!mounted) return;
+        final user = AuthService.instance.currentUser;
+        if (user != null) {
+          try {
+            final profile = await AuthService.instance.getUserProfile(user.uid);
+            if (!mounted) return;
+            if (profile != null && AuthService.instance.isPrivilegedRole(profile.role)) {
+              await AuthService.instance.signOut();
+              setState(() {
+                _isLoading = false;
+                _errorMessage =
+                    'This account is registered as Clinic Staff / Administrator (${profile.role}). Please sign in via the Admin Portal.';
+              });
+              return;
+            }
+
+            if (profile != null &&
+                (profile.profileCompleted ||
+                    profile.profileSkipped ||
+                    (profile.name != null && profile.name!.trim().isNotEmpty))) {
+              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.mainNav, (route) => false);
+            } else {
+              await AuthService.instance.createOrEnsureMinProfile(user.uid, formattedPhone);
+              if (!mounted) return;
+              Navigator.pushNamedAndRemoveUntil(context, AppRoutes.profileSetup, (route) => false);
+            }
+          } catch (e) {
+            if (!mounted) return;
+            setState(() {
+              _isLoading = false;
+              _errorMessage = AuthService.instance.getFriendlyErrorMessage(e);
+            });
+          }
+        }
+      },
     );
   }
 
@@ -66,367 +117,255 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final business = ShopService.instance.currentBusiness;
+    final shopName = business?.name ?? 'Healthy Paws Pet Clinic';
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Ambient Glow Backdrop Blobs
-          Positioned(
-            top: -60,
-            left: -60,
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.skyBlue.withValues(alpha: 0.35),
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
-                child: const SizedBox.expand(),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 40,
-            right: -60,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.lavenderFixed.withValues(alpha: 0.4),
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                child: const SizedBox.expand(),
-              ),
-            ),
-          ),
-
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Top Bar
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        onPressed: () {
-                          if (Navigator.canPop(context)) {
-                            Navigator.pop(context);
-                          } else {
-                            Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
-                          }
-                        },
-                        icon: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.white.withValues(alpha: 0.8),
-                            border: Border.all(color: AppColors.white, width: 1.5),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_rounded,
-                            size: 20,
-                            color: AppColors.mainText,
-                          ),
-                        ),
-                      ),
-
-                      // Secure Access Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.skyBlue.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.skyFixedDim.withValues(alpha: 0.5),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: const [
-                            Icon(
-                              Icons.verified_user_rounded,
-                              size: 14,
-                              color: AppColors.successGreen,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              AppStrings.secureAccessBadge,
-                              style: TextStyle(
-                                color: AppColors.successGreen,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Frosted Brand Symbol Card
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: AppColors.white.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: AppColors.white,
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryPurple.withValues(alpha: 0.12),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Center(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Brand Logo & Shop Identity Badge
+                    Center(
                       child: Container(
-                        width: 80,
-                        height: 80,
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
+                          color: AppColors.white,
                           shape: BoxShape.circle,
-                          color: AppColors.skyBlue.withValues(alpha: 0.3),
-                        ),
-                        child: Center(
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              SvgPicture.asset(
-                                'assets/svg/logo_paw.svg',
-                                width: 56,
-                                height: 56,
-                              ),
-                              Positioned(
-                                bottom: 12,
-                                child: Container(
-                                  width: 14,
-                                  height: 14,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryPurple,
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                  child: const Icon(
-                                    Icons.add_rounded,
-                                    color: AppColors.white,
-                                    size: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Headlines
-                  const Text(
-                    AppStrings.loginTitle,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.mainText,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    AppStrings.loginSubtitle,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.secondaryText,
-                      fontSize: 14,
-                      height: 1.45,
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Auth Card Container
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(28),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: AppColors.white.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(
-                            color: AppColors.skyBlue.withValues(alpha: 0.4),
-                            width: 1.5,
-                          ),
+                          border: Border.all(color: AppColors.border, width: 1),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primaryPurple.withValues(alpha: 0.06),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
+                              color: AppColors.mainText.withValues(alpha: 0.04),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                AppStrings.mobileLabel,
-                                style: TextStyle(
-                                  color: AppColors.mainText,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
+                        child: const Icon(
+                          Icons.pets_rounded,
+                          size: 36,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
 
-                              // Input Row with Country Selector Pill
-                              Row(
-                                children: [
-                                  // Country Code Selector Pill
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 14),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.skyBlue.withValues(alpha: 0.25),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: AppColors.skyFixedDim.withValues(alpha: 0.5),
-                                        width: 1.2,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: const [
-                                        Text('🇮🇳', style: TextStyle(fontSize: 17)),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          '+91',
-                                          style: TextStyle(
-                                            color: AppColors.mainText,
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.keyboard_arrow_down_rounded,
-                                          size: 16,
-                                          color: AppColors.secondaryText,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-
-                                  // Phone Input Field
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _phoneController,
-                                      keyboardType: TextInputType.phone,
-                                      maxLength: 10,
-                                      onChanged: (_) {
-                                        if (_errorMessage != null) {
-                                          setState(() {
-                                            _errorMessage = null;
-                                          });
-                                        }
-                                      },
-                                      style: const TextStyle(
-                                        color: AppColors.mainText,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 1.0,
-                                      ),
-                                      decoration: InputDecoration(
-                                        hintText: AppStrings.mobilePlaceholder,
-                                        counterText: '',
-                                        errorText: _errorMessage,
-                                        contentPadding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 14),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 24),
-
-                              // Continue Primary Button
-                              AppButton(
-                                text: AppStrings.continueText,
-                                isLoading: _isLoading,
-                                onPressed: _onContinuePressed,
-                                icon: Icons.arrow_forward_rounded,
-                                backgroundColor: AppColors.primaryContainer,
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              // Trust Indicator Row
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(
-                                    Icons.lock_outline_rounded,
-                                    size: 14,
-                                    color: AppColors.primaryPurple,
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    AppStrings.secureOtpNotice,
-                                    style: TextStyle(
-                                      color: AppColors.secondaryText,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                    // Shop Badge Pill
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          shopName,
+                          style: const TextStyle(
+                            color: AppColors.onPrimaryContainer,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
                           ),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 20),
 
-                  const SizedBox(height: 32),
-
-                  // Terms & Privacy Notice
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      AppStrings.termsNotice,
+                    // Headings
+                    const Text(
+                      'Welcome Pet Parent',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.mainText,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Sign in with your mobile number to browse pet essentials, book clinic visits, and manage orders.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.secondaryText,
-                        fontSize: 12,
-                        height: 1.5,
+                        fontSize: 14,
+                        height: 1.45,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 32),
 
-                  const SizedBox(height: 16),
-                ],
+                    // Phone Input Card
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.border, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.mainText.withValues(alpha: 0.03),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Mobile Number',
+                            style: TextStyle(
+                              color: AppColors.mainText,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Country Code + 10 Digit Number Row
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceMuted,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: AppColors.border, width: 1),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Text('🇮🇳', style: TextStyle(fontSize: 16)),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      '+91',
+                                      style: TextStyle(
+                                        color: AppColors.mainText,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _phoneController,
+                                  keyboardType: TextInputType.phone,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(10),
+                                  ],
+                                  style: const TextStyle(
+                                    color: AppColors.mainText,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.0,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    hintText: 'Enter 10-digit number',
+                                    counterText: '',
+                                  ),
+                                  onChanged: (_) {
+                                    if (_errorMessage != null) {
+                                      setState(() {
+                                        _errorMessage = null;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // Error text if any
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.errorContainer,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.error_outline_rounded,
+                                      size: 16, color: AppColors.errorRed),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _errorMessage!,
+                                      style: const TextStyle(
+                                        color: AppColors.errorRed,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 20),
+
+                          // Send OTP Button
+                          AppButton(
+                            text: 'Send OTP',
+                            isLoading: _isLoading,
+                            onPressed: _onSendOtpPressed,
+                            backgroundColor: AppColors.primary,
+                            icon: Icons.arrow_forward_rounded,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Privacy & Trust Note
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.primary),
+                        SizedBox(width: 6),
+                        Text(
+                          'Secure OTP verification via Firebase',
+                          style: TextStyle(
+                            color: AppColors.secondaryText,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+                    const Text(
+                      AppStrings.termsNotice,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.mutedText,
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

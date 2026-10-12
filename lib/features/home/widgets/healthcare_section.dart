@@ -92,12 +92,29 @@ class HealthcareSection extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: onViewAllTap,
-                child: const Text(
-                  'View All',
-                  style: TextStyle(
-                    color: AppColors.primaryPurple,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.sageGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    children: [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          color: AppColors.sageGreen,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 10,
+                        color: AppColors.sageGreen,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -122,23 +139,16 @@ class HealthcareSection extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 6),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.lightSky,
-                      AppColors.softLavender.withValues(alpha: 0.7),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: AppColors.white,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                    color: AppColors.white,
-                    width: 1.5,
+                    color: AppColors.outlineVariant.withValues(alpha: 0.35),
+                    width: 1.2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primaryPurple.withValues(alpha: 0.05),
-                      blurRadius: 12,
+                      color: AppColors.mainText.withValues(alpha: 0.04),
+                      blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
@@ -152,14 +162,14 @@ class HealthcareSection extends StatelessWidget {
                         Container(
                           width: 38,
                           height: 38,
-                          decoration: const BoxDecoration(
-                            color: AppColors.white,
+                          decoration: BoxDecoration(
+                            color: AppColors.sageGreen.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             service.icon,
                             size: 20,
-                            color: AppColors.primaryPurple,
+                            color: AppColors.sageGreen,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -191,15 +201,15 @@ class HealthcareSection extends StatelessWidget {
                         Text(
                           service.price,
                           style: const TextStyle(
-                            color: AppColors.primaryPurple,
+                            color: AppColors.sageGreen,
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryPurple,
+                            color: AppColors.sageGreen,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Text(

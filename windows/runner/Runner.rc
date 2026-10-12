@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "pet_care" "\0"
+            VALUE "CompanyName", "com.healthypawspetclinic.app" "\0"
+            VALUE "FileDescription", "Healthy Paws Pet Clinic" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "pet_care" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.healthypawspetclinic.app. All rights reserved." "\0"
             VALUE "OriginalFilename", "pet_care.exe" "\0"
-            VALUE "ProductName", "pet_care" "\0"
+            VALUE "ProductName", "Healthy Paws Pet Clinic" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -18,7 +18,7 @@ class AppButton extends StatelessWidget {
     required this.onPressed,
     this.isLoading = false,
     this.isEnabled = true,
-    this.backgroundColor = AppColors.primaryPurple,
+    this.backgroundColor = AppColors.sageGreen,
     this.textColor = AppColors.white,
     this.height = 54,
     this.borderRadius = 16,
@@ -39,7 +39,7 @@ class AppButton extends StatelessWidget {
           disabledBackgroundColor: backgroundColor.withValues(alpha: 0.45),
           foregroundColor: textColor,
           elevation: canClick ? 2 : 0,
-          shadowColor: AppColors.primaryPurple.withValues(alpha: 0.3),
+          shadowColor: AppColors.sageGreen.withValues(alpha: 0.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(borderRadius),
           ),

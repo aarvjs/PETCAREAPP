@@ -3,6 +3,7 @@ import '../../core/cart/cart_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/product_model.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/widgets/app_network_image.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final ProductItem product;
@@ -82,7 +83,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
           ],
         ),
-        backgroundColor: AppColors.primaryPurple,
+        backgroundColor: AppColors.sageGreen,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
@@ -683,7 +684,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       onPressed: _onBuyNow,
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: const BorderSide(color: AppColors.primaryPurple, width: 1.8),
+                        side: const BorderSide(color: AppColors.sageGreen, width: 1.8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -691,7 +692,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: const Text(
                         'Buy Now',
                         style: TextStyle(
-                          color: AppColors.primaryPurple,
+                          color: AppColors.sageGreen,
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
@@ -704,10 +705,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     child: ElevatedButton(
                       onPressed: _onAddToCart,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryPurple,
+                        backgroundColor: AppColors.sageGreen,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 4,
-                        shadowColor: AppColors.primaryPurple.withValues(alpha: 0.4),
+                        elevation: 3,
+                        shadowColor: AppColors.sageGreen.withValues(alpha: 0.35),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -763,8 +764,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     });
                   },
                   itemBuilder: (context, index) {
-                    return Image.asset(
-                      gallery[index],
+                    return AppNetworkImage(
+                      imageUrl: gallery[index],
                       fit: BoxFit.contain,
                     );
                   },
@@ -823,15 +824,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected
-                            ? AppColors.primaryPurple
-                            : AppColors.skyBlue.withValues(alpha: 0.3),
+                            ? AppColors.sageGreen
+                            : AppColors.outlineVariant.withValues(alpha: 0.35),
                         width: isSelected ? 2 : 1,
                       ),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.asset(
-                        gallery[index],
+                      child: AppNetworkImage(
+                        imageUrl: gallery[index],
                         fit: BoxFit.cover,
                       ),
                     ),

@@ -1,18 +1,21 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/widgets/app_button.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
+  final String? verificationId;
+  final int? resendToken;
 
   const OtpScreen({
     super.key,
     required this.phoneNumber,
+    this.verificationId,
+    this.resendToken,
   });
 
   @override
@@ -30,9 +33,15 @@ class _OtpScreenState extends State<OtpScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  String? _verificationId;
+  int? _resendToken;
+
   @override
   void initState() {
     super.initState();
+    _verificationId = widget.verificationId;
+    _resendToken = widget.resendToken;
+
     _controllers = List.generate(_otpLength, (_) => TextEditingController());
     _focusNodes = List.generate(_otpLength, (_) => FocusNode());
 
@@ -62,18 +71,46 @@ class _OtpScreenState extends State<OtpScreen> {
     });
   }
 
-  void _onResendPressed() {
-    if (!_canResend) return;
+  void _onResendPressed() async {
+    if (!_canResend || _isLoading) return;
 
-    // Abstraction point: Firebase resend code trigger will happen here.
-    _startResendTimer();
+    setState(() {
+      _errorMessage = null;
+      _isLoading = true;
+    });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(AppStrings.otpSentMessage),
-        backgroundColor: AppColors.primaryPurple,
-        behavior: SnackBarBehavior.floating,
-      ),
+    await AuthService.instance.sendOtp(
+      phoneNumber: widget.phoneNumber,
+      resendToken: _resendToken,
+      onCodeSent: (String newVerificationId, int? newResendToken) {
+        if (!mounted) return;
+        setState(() {
+          _verificationId = newVerificationId;
+          _resendToken = newResendToken;
+          _isLoading = false;
+        });
+
+        _startResendTimer();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A new OTP has been sent to your mobile number'),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+      onError: (String errorMessage) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _errorMessage = errorMessage;
+        });
+      },
+      onAutoVerified: (credential) async {
+        if (!mounted) return;
+        _handleVerificationSuccess();
+      },
     );
   }
 
@@ -88,7 +125,7 @@ class _OtpScreenState extends State<OtpScreen> {
       });
     }
 
-    // Handle paste of 6 digits
+    // Handle paste of full 6 digits
     if (value.length > 1) {
       final digits = value.replaceAll(RegExp(r'\D'), '');
       for (int i = 0; i < _otpLength; i++) {
@@ -100,6 +137,7 @@ class _OtpScreenState extends State<OtpScreen> {
       }
       if (digits.length >= _otpLength) {
         _focusNodes[_otpLength - 1].unfocus();
+        _onVerifyPressed();
       } else {
         _focusNodes[digits.length].requestFocus();
       }
@@ -123,7 +161,14 @@ class _OtpScreenState extends State<OtpScreen> {
     final code = _otpCode;
     if (code.length < _otpLength) {
       setState(() {
-        _errorMessage = AppStrings.invalidOtpError;
+        _errorMessage = 'Please enter all 6 digits of the OTP code.';
+      });
+      return;
+    }
+
+    if (_verificationId == null || _verificationId!.isEmpty) {
+      setState(() {
+        _errorMessage = 'Verification session expired. Please tap Resend Code.';
       });
       return;
     }
@@ -132,23 +177,71 @@ class _OtpScreenState extends State<OtpScreen> {
       _isLoading = true;
     });
 
-    // Abstraction point: Firebase PhoneAuthCredential verification will be hooked here in next step.
-    await Future.delayed(const Duration(milliseconds: 600));
+    try {
+      await AuthService.instance.signInWithOtp(
+        verificationId: _verificationId!,
+        smsCode: code,
+      );
 
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-    });
+      if (!mounted) return;
+      await _handleVerificationSuccess();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
+    }
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('OTP Verified Successfully!'),
-        backgroundColor: AppColors.successGreen,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _handleVerificationSuccess() async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Authentication session lost. Please try logging in again.';
+      });
+      return;
+    }
 
-    Navigator.pushNamedAndRemoveUntil(context, AppRoutes.mainNav, (route) => false);
+    try {
+      final profile = await AuthService.instance.getUserProfile(user.uid);
+
+      if (profile != null && AuthService.instance.isPrivilegedRole(profile.role)) {
+        await AuthService.instance.signOut();
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              'This account is registered as Clinic Staff / Administrator (${profile.role}). Please use the Admin Portal.';
+        });
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Existing customer who already has a name or completed/skipped setup goes straight to Home
+      if (profile != null &&
+          (profile.profileCompleted ||
+              profile.profileSkipped ||
+              (profile.name != null && profile.name!.trim().isNotEmpty))) {
+        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.mainNav, (route) => false);
+      } else {
+        // New customer: show the clean, optional profile setup
+        await AuthService.instance.createOrEnsureMinProfile(user.uid, widget.phoneNumber);
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.profileSetup, (route) => false);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = AuthService.instance.getFriendlyErrorMessage(e);
+      });
+    }
   }
 
   @override
@@ -165,209 +258,54 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final displayPhone = widget.phoneNumber.isEmpty ? '+91 98765 43210' : widget.phoneNumber;
+    final maskedPhone = widget.phoneNumber.isEmpty
+        ? '+91 Mobile Number'
+        : AuthService.instance.maskPhoneNumber(widget.phoneNumber);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Ambient Glow Backdrop Blobs
-          Positioned(
-            top: -60,
-            left: -60,
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.skyBlue.withValues(alpha: 0.3),
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
-                child: const SizedBox.expand(),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 100,
-            right: -60,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.lavenderFixed.withValues(alpha: 0.4),
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                child: const SizedBox.expand(),
-              ),
-            ),
-          ),
-
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.mainText),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, AppRoutes.login);
+            }
+          },
+        ),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Top Navigation Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.white.withValues(alpha: 0.8),
-                            border: Border.all(color: AppColors.white, width: 1.5),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_rounded,
-                            size: 20,
-                            color: AppColors.mainText,
-                          ),
-                        ),
+                  // Verification Shield Icon
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryContainer,
+                        shape: BoxShape.circle,
                       ),
-
-                      // Center Emblem
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.white.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.white.withValues(alpha: 0.8),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: const [
-                            Icon(
-                              Icons.pets_rounded,
-                              size: 16,
-                              color: AppColors.primaryPurple,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'PetCare',
-                              style: TextStyle(
-                                color: AppColors.primaryPurple,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: const Icon(
+                        Icons.mark_email_read_outlined,
+                        size: 32,
+                        color: AppColors.primary,
                       ),
-
-                      // Help Button
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.white.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.white, width: 1),
-                        ),
-                        child: Row(
-                          children: const [
-                            Icon(
-                              Icons.help_outline_rounded,
-                              size: 14,
-                              color: AppColors.secondaryText,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Help',
-                              style: TextStyle(
-                                color: AppColors.secondaryText,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Veterinary Shield Icon Anchor
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          gradient: const LinearGradient(
-                            colors: [
-                              AppColors.lavenderFixed,
-                              AppColors.skyContainer,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          border: Border.all(
-                            color: AppColors.white,
-                            width: 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primaryPurple.withValues(alpha: 0.12),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryPurple,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: const Icon(
-                              Icons.medical_services_rounded,
-                              size: 28,
-                              color: AppColors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.mainText.withValues(alpha: 0.1),
-                              blurRadius: 6,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.verified_rounded,
-                          size: 16,
-                          color: AppColors.primaryPurple,
-                        ),
-                      ),
-                    ],
-                  ),
-
                   const SizedBox(height: 20),
 
-                  // Header Typography
+                  // Title
                   const Text(
-                    AppStrings.otpTitle,
+                    'Verify Phone Number',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppColors.mainText,
                       fontSize: 24,
@@ -375,246 +313,190 @@ class _OtpScreenState extends State<OtpScreen> {
                       letterSpacing: -0.3,
                     ),
                   ),
-
                   const SizedBox(height: 8),
 
+                  // Masked Phone Number & Change Link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        AppStrings.otpSubtitlePrefix,
+                        'Code sent to $maskedPhone',
                         style: const TextStyle(
                           color: AppColors.secondaryText,
                           fontSize: 14,
                         ),
                       ),
-                      Text(
-                        displayPhone,
-                        style: const TextStyle(
-                          color: AppColors.mainText,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          } else {
+                            Navigator.pushReplacementNamed(context, AppRoutes.login);
+                          }
+                        },
+                        child: const Text(
+                          'Change',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 32),
 
-                  const SizedBox(height: 6),
-
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Text(
-                      AppStrings.changeNumber,
-                      style: TextStyle(
-                        color: AppColors.primaryPurple,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        decoration: TextDecoration.underline,
-                        decorationColor: AppColors.primaryPurple,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // Frosted Sanctuary Interactive Box
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(28),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          color: AppColors.white.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(
-                            color: AppColors.white.withValues(alpha: 0.9),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primaryPurple.withValues(alpha: 0.08),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
+                  // OTP Input Card
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.mainText.withValues(alpha: 0.03),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                        child: Column(
-                          children: [
-                            // 6 OTP Box Inputs
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: List.generate(
-                                _otpLength,
-                                (index) => SizedBox(
-                                  width: 44,
-                                  height: 54,
-                                  child: KeyboardListener(
-                                    focusNode: FocusNode(),
-                                    onKeyEvent: (event) {
-                                      if (event is KeyDownEvent &&
-                                          event.logicalKey == LogicalKeyboardKey.backspace &&
-                                          _controllers[index].text.isEmpty &&
-                                          index > 0) {
-                                        _focusNodes[index - 1].requestFocus();
-                                      }
-                                    },
-                                    child: TextField(
-                                      controller: _controllers[index],
-                                      focusNode: _focusNodes[index],
-                                      autofocus: index == 0,
-                                      keyboardType: TextInputType.number,
-                                      textAlign: TextAlign.center,
-                                      maxLength: 1,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                      ],
-                                      style: const TextStyle(
-                                        color: AppColors.mainText,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                      onChanged: (value) => _onOtpChanged(index, value),
-                                      decoration: InputDecoration(
-                                        counterText: '',
-                                        contentPadding: EdgeInsets.zero,
-                                        filled: true,
-                                        fillColor: _focusNodes[index].hasFocus
-                                            ? AppColors.white
-                                            : AppColors.surfaceContainerLow,
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(14),
-                                          borderSide: BorderSide(
-                                            color: _controllers[index].text.isNotEmpty
-                                                ? AppColors.primaryPurple
-                                                : AppColors.skyBlue.withValues(alpha: 0.4),
-                                            width: 1.5,
-                                          ),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(14),
-                                          borderSide: const BorderSide(
-                                            color: AppColors.primaryPurple,
-                                            width: 2.0,
-                                          ),
-                                        ),
-                                      ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Six OTP Digits
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(_otpLength, (index) {
+                            return SizedBox(
+                              width: 44,
+                              height: 52,
+                              child: TextFormField(
+                                controller: _controllers[index],
+                                focusNode: _focusNodes[index],
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                maxLength: 1,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                onChanged: (val) => _onOtpChanged(index, val),
+                                style: const TextStyle(
+                                  color: AppColors.mainText,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                decoration: InputDecoration(
+                                  counterText: '',
+                                  contentPadding: EdgeInsets.zero,
+                                  fillColor: _controllers[index].text.isNotEmpty
+                                      ? AppColors.primaryContainer.withValues(alpha: 0.3)
+                                      : AppColors.inputBackground,
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.primary,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: _controllers[index].text.isNotEmpty
+                                          ? AppColors.primary
+                                          : AppColors.inputBorder,
+                                      width: 1,
                                     ),
                                   ),
                                 ),
                               ),
+                            );
+                          }),
+                        ),
+
+                        // Error Banner if present
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.errorContainer,
+                              borderRadius: BorderRadius.circular(10),
                             ),
-
-                            if (_errorMessage != null) ...[
-                              const SizedBox(height: 12),
-                              Text(
-                                _errorMessage!,
-                                style: const TextStyle(
-                                  color: AppColors.errorRed,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline_rounded,
+                                    size: 16, color: AppColors.errorRed),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: const TextStyle(
+                                      color: AppColors.errorRed,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 24),
+
+                        // Verify Button
+                        AppButton(
+                          text: 'Verify & Continue',
+                          isLoading: _isLoading,
+                          onPressed: _onVerifyPressed,
+                          backgroundColor: AppColors.primary,
+                          icon: Icons.check_circle_outline_rounded,
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Resend Countdown Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Didn\'t receive code? ',
+                              style: TextStyle(
+                                color: AppColors.secondaryText,
+                                fontSize: 13,
                               ),
-                            ],
-
-                            const SizedBox(height: 24),
-
-                            // Resend Timer Row
+                            ),
                             _canResend
-                                ? TextButton(
-                                    onPressed: _onResendPressed,
+                                ? GestureDetector(
+                                    onTap: _onResendPressed,
                                     child: const Text(
-                                      AppStrings.resendCode,
+                                      'Resend OTP',
                                       style: TextStyle(
-                                        color: AppColors.primaryPurple,
-                                        fontSize: 14,
+                                        color: AppColors.primary,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                   )
-                                : Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surfaceContainer,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Text(
-                                          AppStrings.resendCodeIn,
-                                          style: TextStyle(
-                                            color: AppColors.secondaryText,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        Text(
-                                          '00:${_secondsRemaining.toString().padLeft(2, '0')}',
-                                          style: const TextStyle(
-                                            color: AppColors.primaryPurple,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
+                                : Text(
+                                    'Resend in ${_secondsRemaining}s',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-
-                            const SizedBox(height: 24),
-
-                            // Verify & Continue Button
-                            AppButton(
-                              text: AppStrings.verifyContinue,
-                              isLoading: _isLoading,
-                              onPressed: _onVerifyPressed,
-                              icon: Icons.arrow_forward_rounded,
-                              backgroundColor: AppColors.primaryPurple,
-                            ),
                           ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Bottom Security Badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.white.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.white, width: 1),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(
-                          Icons.shield_outlined,
-                          size: 16,
-                          color: AppColors.primaryPurple,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          AppStrings.encryptionBadge,
-                          style: TextStyle(
-                            color: AppColors.secondaryText,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

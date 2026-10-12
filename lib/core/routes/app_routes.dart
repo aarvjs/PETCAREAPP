@@ -3,6 +3,7 @@ import '../../features/splash/splash_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/otp_screen.dart';
+import '../../features/auth/profile_setup_screen.dart';
 import '../../features/navigation/main_navigation_screen.dart';
 
 class AppRoutes {
@@ -12,6 +13,7 @@ class AppRoutes {
   static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String otp = '/otp';
+  static const String profileSetup = '/profile-setup';
   static const String mainNav = '/main';
 
   static Map<String, WidgetBuilder> get routes => {
@@ -20,9 +22,25 @@ class AppRoutes {
         login: (context) => const LoginScreen(),
         otp: (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
-          final phoneNumber = args is String ? args : '';
-          return OtpScreen(phoneNumber: phoneNumber);
+          String phoneNumber = '';
+          String? verificationId;
+          int? resendToken;
+
+          if (args is String) {
+            phoneNumber = args;
+          } else if (args is Map<String, dynamic>) {
+            phoneNumber = args['phoneNumber'] ?? '';
+            verificationId = args['verificationId'];
+            resendToken = args['resendToken'];
+          }
+
+          return OtpScreen(
+            phoneNumber: phoneNumber,
+            verificationId: verificationId,
+            resendToken: resendToken,
+          );
         },
+        profileSetup: (context) => const ProfileSetupScreen(),
         mainNav: (context) => const MainNavigationScreen(),
       };
 
@@ -35,8 +53,28 @@ class AppRoutes {
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       case otp:
-        final phoneNumber = settings.arguments is String ? settings.arguments as String : '';
-        return MaterialPageRoute(builder: (_) => OtpScreen(phoneNumber: phoneNumber));
+        final args = settings.arguments;
+        String phoneNumber = '';
+        String? verificationId;
+        int? resendToken;
+
+        if (args is String) {
+          phoneNumber = args;
+        } else if (args is Map<String, dynamic>) {
+          phoneNumber = args['phoneNumber'] ?? '';
+          verificationId = args['verificationId'];
+          resendToken = args['resendToken'];
+        }
+
+        return MaterialPageRoute(
+          builder: (_) => OtpScreen(
+            phoneNumber: phoneNumber,
+            verificationId: verificationId,
+            resendToken: resendToken,
+          ),
+        );
+      case profileSetup:
+        return MaterialPageRoute(builder: (_) => const ProfileSetupScreen());
       case mainNav:
         return MaterialPageRoute(builder: (_) => const MainNavigationScreen());
       default:

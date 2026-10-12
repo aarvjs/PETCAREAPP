@@ -1,11 +1,11 @@
 {
-    "name": "pet_care",
-    "short_name": "pet_care",
+    "name": "Healthy Paws Pet Clinic",
+    "short_name": "Healthy Paws",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Healthy Paws Pet Clinic Flutter mobile application.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
