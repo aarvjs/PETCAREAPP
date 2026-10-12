@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/shop_service.dart';
+import 'order_tracking_screen.dart';
 
 class OrdersScreen extends StatelessWidget {
   const OrdersScreen({super.key});
@@ -48,7 +49,15 @@ class OrdersScreen extends StatelessWidget {
                     );
                   }
 
-                  final docs = snapshot.data?.docs ?? [];
+                  final docs = List.of(snapshot.data?.docs ?? []);
+                  // Sort newest orders first
+                  docs.sort((a, b) {
+                    final aData = a.data();
+                    final bData = b.data();
+                    final aTime = (aData['createdAt'] as Timestamp?)?.toDate().millisecondsSinceEpoch ?? 0;
+                    final bTime = (bData['createdAt'] as Timestamp?)?.toDate().millisecondsSinceEpoch ?? 0;
+                    return bTime.compareTo(aTime);
+                  });
 
                   if (docs.isEmpty) {
                     return Center(
@@ -100,7 +109,7 @@ class OrdersScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final data = docs[index].data();
                       final orderId = data['orderId'] ?? docs[index].id;
-                      final status = data['status'] ?? 'Placed';
+                      final status = (data['status'] ?? data['orderStatus'] ?? 'Placed').toString();
                       final totalAmount = data['totalAmount'] ?? 0;
                       final businessName = data['businessName'] ?? 'Healthy Paws Store';
                       final items = (data['items'] as List<dynamic>?) ?? [];
@@ -108,88 +117,128 @@ class OrdersScreen extends StatelessWidget {
                           ? items.map((i) => '${i['name'] ?? 'Item'} (x${i['quantity'] ?? 1})').join(', ')
                           : 'Order Items';
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.outlineVariant.withValues(alpha: 0.35),
-                            width: 1.2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.mainText.withValues(alpha: 0.04),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                      final docId = docs[index].id;
+                      final isCancelled = status.toLowerCase().contains('cancel');
+                      final isDelivered = status.toLowerCase().contains('deliver');
+
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => OrderTrackingScreen(
+                                orderDocId: docId,
+                                initialData: data,
+                              ),
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  orderId.toString(),
-                                  style: const TextStyle(
-                                    color: AppColors.sageGreen,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.border,
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.mainText.withValues(alpha: 0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      orderId.toString(),
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
                                   ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isCancelled
+                                          ? AppColors.errorContainer
+                                          : (isDelivered ? AppColors.successContainer : AppColors.primaryContainer),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      status.toString().toUpperCase(),
+                                      style: TextStyle(
+                                        color: isCancelled
+                                            ? AppColors.errorRed
+                                            : (isDelivered ? AppColors.successGreen : AppColors.onPrimaryContainer),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                itemsSummary,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.mainText,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.softSage,
-                                    borderRadius: BorderRadius.circular(12),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      businessName.toString(),
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: AppColors.secondaryText,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ),
-                                  child: Text(
-                                    status.toString(),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '₹${(totalAmount as num).toStringAsFixed(0)}',
                                     style: const TextStyle(
-                                      color: AppColors.sageGreen,
-                                      fontSize: 11,
+                                      color: AppColors.mainText,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              itemsSummary,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AppColors.mainText,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  businessName.toString(),
-                                  style: const TextStyle(
-                                    color: AppColors.secondaryText,
-                                    fontSize: 12,
+                              const SizedBox(height: 8),
+                              const Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    'Track Order →',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  '₹${(totalAmount as num).toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    color: AppColors.mainText,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },

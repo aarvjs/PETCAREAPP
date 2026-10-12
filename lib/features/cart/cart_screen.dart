@@ -5,7 +5,8 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/shop_service.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_network_image.dart';
-import '../orders/orders_screen.dart';
+import '../../core/routes/app_routes.dart';
+import '../orders/order_tracking_screen.dart';
 
 class CartScreen extends StatefulWidget {
   final VoidCallback? onContinueShopping;
@@ -24,6 +25,18 @@ class _CartScreenState extends State<CartScreen> {
 
   void _showCheckoutBottomSheet(BuildContext context) async {
     final user = AuthService.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in with your phone number to complete checkout'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pushNamed(AppRoutes.login);
+      return;
+    }
+
     final profile = AuthService.instance.currentUserProfile;
 
     final nameController = TextEditingController(
@@ -32,14 +45,19 @@ class _CartScreenState extends State<CartScreen> {
     final phoneController = TextEditingController(
       text: (profile?.phoneNumber != null && profile!.phoneNumber.trim().isNotEmpty)
           ? profile.phoneNumber
-          : (user?.phoneNumber ?? ''),
+          : (user.phoneNumber ?? ''),
     );
-    final addressController = TextEditingController(
+    final houseController = TextEditingController(
       text: (profile?.address != null && profile!.address!.trim().isNotEmpty) ? profile.address! : '',
     );
+    final streetController = TextEditingController();
+    final landmarkController = TextEditingController();
     final cityController = TextEditingController(
-      text: (profile?.city != null && profile!.city!.trim().isNotEmpty) ? profile.city! : '',
+      text: (profile?.city != null && profile!.city!.trim().isNotEmpty) ? profile.city! : 'Kanpur',
     );
+    final stateController = TextEditingController(text: 'Uttar Pradesh');
+    final pincodeController = TextEditingController();
+    final instructionsController = TextEditingController();
 
     String paymentMethod = 'Cash on Delivery';
 
@@ -51,6 +69,9 @@ class _CartScreenState extends State<CartScreen> {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+              ),
               padding: EdgeInsets.only(
                 top: 24,
                 left: 20,
@@ -83,65 +104,171 @@ class _CartScreenState extends State<CartScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
-                    // Delivery Address
+                    // Section: Recipient Information
                     const Text(
-                      'Delivery Address *',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                      'Contact Information',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: 0.5),
                     ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: addressController,
-                      decoration: const InputDecoration(
-                        hintText: 'Flat / House No., Street, Landmark',
-                        prefixIcon: Icon(Icons.location_on_outlined, color: AppColors.secondaryText, size: 20),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // City
-                    const Text(
-                      'City / Town *',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: cityController,
-                      decoration: const InputDecoration(
-                        hintText: 'e.g. Kanpur, Lucknow',
-                        prefixIcon: Icon(Icons.location_city_outlined, color: AppColors.secondaryText, size: 20),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
 
                     // Recipient Name
                     const Text(
-                      'Recipient Name',
+                      'Recipient Full Name *',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     TextField(
                       controller: nameController,
                       decoration: const InputDecoration(
-                        hintText: 'Enter contact person name',
+                        hintText: 'e.g. Rahul Sharma',
                         prefixIcon: Icon(Icons.person_outline, color: AppColors.secondaryText, size: 20),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
                     // Phone Number
                     const Text(
-                      'Phone Number',
+                      'Contact Mobile Number *',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     TextField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
                       decoration: const InputDecoration(
                         hintText: '10-digit mobile number',
                         prefixIcon: Icon(Icons.phone_outlined, color: AppColors.secondaryText, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Section: Complete Address Details
+                    const Text(
+                      'Complete Delivery Address',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: 0.5),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // House / Flat No.
+                    const Text(
+                      'House / Flat No., Building Name *',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: houseController,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. Flat 304, Green Heights',
+                        prefixIcon: Icon(Icons.home_outlined, color: AppColors.secondaryText, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Street / Area / Locality
+                    const Text(
+                      'Street, Area, Locality *',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: streetController,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. Main Market, Civil Lines',
+                        prefixIcon: Icon(Icons.location_on_outlined, color: AppColors.secondaryText, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Landmark (Optional)
+                    const Text(
+                      'Nearby Landmark (Optional)',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: landmarkController,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. Near City Hospital',
+                        prefixIcon: Icon(Icons.flag_outlined, color: AppColors.secondaryText, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // City & State Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'City / Town *',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                              ),
+                              const SizedBox(height: 4),
+                              TextField(
+                                controller: cityController,
+                                decoration: const InputDecoration(
+                                  hintText: 'e.g. Kanpur',
+                                  prefixIcon: Icon(Icons.location_city_outlined, color: AppColors.secondaryText, size: 18),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'State *',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                              ),
+                              const SizedBox(height: 4),
+                              TextField(
+                                controller: stateController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Uttar Pradesh',
+                                  prefixIcon: Icon(Icons.map_outlined, color: AppColors.secondaryText, size: 18),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Postal / PIN Code
+                    const Text(
+                      'PIN / Postal Code *',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: pincodeController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. 208001',
+                        prefixIcon: Icon(Icons.pin_drop_outlined, color: AppColors.secondaryText, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Delivery Instructions (Optional)
+                    const Text(
+                      'Delivery Instructions (Optional)',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: instructionsController,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. Please call before arrival',
+                        prefixIcon: Icon(Icons.note_alt_outlined, color: AppColors.secondaryText, size: 20),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -251,10 +378,60 @@ class _CartScreenState extends State<CartScreen> {
                       height: 52,
                       child: ElevatedButton(
                         onPressed: () {
-                          if (addressController.text.trim().isEmpty) {
+                          if (nameController.text.trim().isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Please enter delivery address'),
+                                content: Text('Please enter recipient name'),
+                                backgroundColor: AppColors.warmCoral,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+                          if (phoneController.text.trim().length < 10) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter a valid 10-digit mobile number'),
+                                backgroundColor: AppColors.warmCoral,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+                          if (houseController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter house/flat and building name'),
+                                backgroundColor: AppColors.warmCoral,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+                          if (streetController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter street or locality name'),
+                                backgroundColor: AppColors.warmCoral,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+                          if (cityController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter city name'),
+                                backgroundColor: AppColors.warmCoral,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+                          if (pincodeController.text.trim().length < 4) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter a valid postal PIN code'),
                                 backgroundColor: AppColors.warmCoral,
                                 behavior: SnackBarBehavior.floating,
                               ),
@@ -288,40 +465,92 @@ class _CartScreenState extends State<CartScreen> {
 
     if (result == true) {
       _processPlaceOrder(
-        address: addressController.text.trim(),
-        city: cityController.text.trim(),
         name: nameController.text.trim(),
         phone: phoneController.text.trim(),
+        houseOrFlat: houseController.text.trim(),
+        streetOrLocality: streetController.text.trim(),
+        landmark: landmarkController.text.trim(),
+        city: cityController.text.trim(),
+        state: stateController.text.trim().isNotEmpty ? stateController.text.trim() : 'Uttar Pradesh',
+        pincode: pincodeController.text.trim(),
+        deliveryInstructions: instructionsController.text.trim(),
         paymentMethod: paymentMethod,
       );
     }
   }
 
   Future<void> _processPlaceOrder({
-    required String address,
-    required String city,
     required String name,
     required String phone,
+    required String houseOrFlat,
+    required String streetOrLocality,
+    required String landmark,
+    required String city,
+    required String state,
+    required String pincode,
+    required String deliveryInstructions,
     required String paymentMethod,
   }) async {
+    if (_isSubmittingOrder) return;
+
+    final user = AuthService.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to complete your order'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      Navigator.of(context).pushNamed(AppRoutes.login);
+      return;
+    }
+
     setState(() {
       _isSubmittingOrder = true;
     });
 
-    try {
-      final user = AuthService.instance.currentUser;
-      final userId = user?.uid ?? 'guest_${DateTime.now().millisecondsSinceEpoch}';
+    final orderTotal = CartService.instance.total;
 
+    // Build the complete formatted address string for safe display
+    final formattedAddress = [
+      houseOrFlat,
+      streetOrLocality,
+      if (landmark.isNotEmpty) 'Near $landmark',
+      city,
+      if (state.isNotEmpty) '$state - $pincode' else pincode,
+    ].where((s) => s.trim().isNotEmpty).join(', ');
+
+    final shippingAddressMap = {
+      'recipientName': name,
+      'phoneNumber': phone,
+      'houseOrFlat': houseOrFlat,
+      'streetOrLocality': streetOrLocality,
+      'landmark': landmark,
+      'city': city,
+      'state': state,
+      'pincode': pincode,
+      'deliveryInstructions': deliveryInstructions,
+      'formattedAddress': formattedAddress,
+    };
+
+    try {
       final orderDocId = await ShopService.instance.submitOrder(
-        userId: userId,
+        userId: user.uid,
         customerName: name.isNotEmpty ? name : 'Valued Customer',
-        customerPhone: phone.isNotEmpty ? phone : (user?.phoneNumber ?? ''),
-        deliveryAddress: address,
+        customerPhone: phone.isNotEmpty ? phone : (user.phoneNumber ?? ''),
+        deliveryAddress: formattedAddress,
         city: city.isNotEmpty ? city : 'Local Delivery',
+        houseOrFlat: houseOrFlat,
+        streetOrLocality: streetOrLocality,
+        landmark: landmark,
+        state: state,
+        pincode: pincode,
+        deliveryInstructions: deliveryInstructions,
+        shippingAddress: shippingAddressMap,
         items: CartService.instance.items,
         subtotal: CartService.instance.subtotal,
         deliveryFee: CartService.instance.deliveryFee,
-        totalAmount: CartService.instance.total,
+        totalAmount: orderTotal,
         paymentMethod: paymentMethod,
       );
 
@@ -341,12 +570,12 @@ class _CartScreenState extends State<CartScreen> {
                   width: 60,
                   height: 60,
                   decoration: const BoxDecoration(
-                    color: AppColors.softSage,
+                    color: AppColors.primaryContainer,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.check_circle_rounded,
-                    color: AppColors.sageGreen,
+                    color: AppColors.primary,
                     size: 36,
                   ),
                 ),
@@ -361,19 +590,43 @@ class _CartScreenState extends State<CartScreen> {
                 ),
               ],
             ),
-            content: Text(
-              'Thank you! Your order has been placed with ${ShopService.instance.currentBusiness?.name ?? "the shop"}.\n\nReference: $orderDocId',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.secondaryText,
-                height: 1.4,
-              ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Thank you! Your order of ₹${orderTotal.toStringAsFixed(0)} has been placed with ${ShopService.instance.currentBusiness?.name ?? "the shop"}.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.secondaryText,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Text(
+                    'Order ID: $orderDocId',
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
             ),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.pop(dialogCtx);
+                  widget.onContinueShopping?.call();
                 },
                 child: const Text(
                   'Continue Shopping',
@@ -387,15 +640,20 @@ class _CartScreenState extends State<CartScreen> {
                 onPressed: () {
                   Navigator.pop(dialogCtx);
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const OrdersScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => OrderTrackingScreen(
+                        orderDocId: orderDocId,
+                      ),
+                    ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.sageGreen,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: const Text(
-                  'View Orders',
+                  'Track Order',
                   style: TextStyle(
                     color: AppColors.white,
                     fontWeight: FontWeight.w800,
@@ -411,7 +669,7 @@ class _CartScreenState extends State<CartScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to place order: $e'),
-            backgroundColor: AppColors.warmCoral,
+            backgroundColor: AppColors.errorRed,
             behavior: SnackBarBehavior.floating,
           ),
         );

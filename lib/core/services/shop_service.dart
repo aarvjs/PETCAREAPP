@@ -251,11 +251,13 @@ class ShopService extends ChangeNotifier {
 
   /// Books a veterinary appointment in Firestore
   Future<String> bookAppointment({
+    required String userId,
     required String customerName,
     required String customerPhone,
     required String petName,
     required String petType,
     required String serviceName,
+    String? doctorId,
     String? doctorName,
     required String appointmentDate,
     required String appointmentTime,
@@ -266,6 +268,7 @@ class ShopService extends ChangeNotifier {
 
     final data = {
       'appointmentId': appointmentId,
+      'userId': userId,
       'shopId': biz?.shopId ?? configuredShopId,
       'businessId': biz?.id ?? '',
       'businessName': biz?.name ?? 'Healthy Paws Clinic',
@@ -274,11 +277,12 @@ class ShopService extends ChangeNotifier {
       'petName': petName.trim(),
       'petType': petType.trim(),
       'serviceName': serviceName.trim(),
+      'doctorId': doctorId ?? '',
       'doctorName': doctorName?.trim() ?? 'Any Available Specialist',
       'appointmentDate': appointmentDate,
       'appointmentTime': appointmentTime,
       'notes': notes?.trim() ?? '',
-      'status': 'confirmed',
+      'status': 'Pending',
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -299,6 +303,13 @@ class ShopService extends ChangeNotifier {
     required String customerPhone,
     required String deliveryAddress,
     required String city,
+    String? houseOrFlat,
+    String? streetOrLocality,
+    String? landmark,
+    String? state,
+    String? pincode,
+    String? deliveryInstructions,
+    Map<String, dynamic>? shippingAddress,
     required List<CartLineItem> items,
     required double subtotal,
     required double deliveryFee,
@@ -321,6 +332,20 @@ class ShopService extends ChangeNotifier {
       };
     }).toList();
 
+    // Snapshot of delivery address to prevent future profile updates from modifying this order
+    final addressSnapshot = shippingAddress ?? {
+      'recipientName': customerName.trim(),
+      'phoneNumber': customerPhone.trim(),
+      'houseOrFlat': houseOrFlat?.trim() ?? '',
+      'streetOrLocality': streetOrLocality?.trim() ?? '',
+      'landmark': landmark?.trim() ?? '',
+      'city': city.trim(),
+      'state': state?.trim() ?? '',
+      'pincode': pincode?.trim() ?? '',
+      'deliveryInstructions': deliveryInstructions?.trim() ?? '',
+      'formattedAddress': deliveryAddress.trim(),
+    };
+
     final orderData = {
       'orderId': orderId,
       'shopId': biz?.shopId ?? configuredShopId,
@@ -331,18 +356,29 @@ class ShopService extends ChangeNotifier {
       'customerPhone': customerPhone.trim(),
       'deliveryAddress': deliveryAddress.trim(),
       'city': city.trim(),
+      if (houseOrFlat != null && houseOrFlat.trim().isNotEmpty) 'houseOrFlat': houseOrFlat.trim(),
+      if (streetOrLocality != null && streetOrLocality.trim().isNotEmpty) 'streetOrLocality': streetOrLocality.trim(),
+      if (landmark != null && landmark.trim().isNotEmpty) 'landmark': landmark.trim(),
+      if (state != null && state.trim().isNotEmpty) 'state': state.trim(),
+      if (pincode != null && pincode.trim().isNotEmpty) 'pincode': pincode.trim(),
+      if (deliveryInstructions != null && deliveryInstructions.trim().isNotEmpty) 'deliveryInstructions': deliveryInstructions.trim(),
+      'shippingAddress': addressSnapshot,
       'items': serializedItems,
       'itemCount': items.fold<int>(0, (totalCount, i) => totalCount + i.quantity),
       'subtotal': subtotal,
       'deliveryFee': deliveryFee,
       'totalAmount': totalAmount,
       'paymentMethod': paymentMethod,
+      'paymentStatus': 'Pending',
       'status': 'Placed',
+      'orderStatus': 'Placed',
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
     final docRef = await _firestore.collection('orders').add(orderData);
+    // Also store doc id on the record
+    await docRef.update({'id': docRef.id});
     return docRef.id;
   }
 }

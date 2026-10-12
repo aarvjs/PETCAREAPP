@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/doctor_model.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../core/services/shop_service.dart';
+import '../../../core/routes/app_routes.dart';
+import '../appointment_detail_screen.dart';
 
 class ClinicHomeView extends StatelessWidget {
   final VoidCallback onOpenDrawer;
@@ -14,8 +17,22 @@ class ClinicHomeView extends StatelessWidget {
   });
 
   void _showBookingSheet(BuildContext context, {String? defaultService, String? defaultDoctor}) {
-    final nameCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
+    final user = AuthService.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in with your phone number to book a clinic appointment'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pushNamed(AppRoutes.login);
+      return;
+    }
+
+    final profile = AuthService.instance.currentUserProfile;
+    final nameCtrl = TextEditingController(text: profile?.name ?? '');
+    final phoneCtrl = TextEditingController(text: profile?.phoneNumber ?? user.phoneNumber ?? '');
     final petNameCtrl = TextEditingController();
     String selectedPetType = 'Dog';
     String selectedService = defaultService ?? 'Veterinary Consultation';
@@ -153,7 +170,8 @@ class ClinicHomeView extends StatelessWidget {
                         final cName = nameCtrl.text.trim().isEmpty ? 'Customer' : nameCtrl.text.trim();
                         final cPhone = phoneCtrl.text.trim();
 
-                        await ShopService.instance.bookAppointment(
+                        final appointmentRefId = await ShopService.instance.bookAppointment(
+                          userId: user.uid,
                           customerName: cName,
                           customerPhone: cPhone,
                           petName: pName,
@@ -166,11 +184,75 @@ class ClinicHomeView extends StatelessWidget {
 
                         if (!context.mounted) return;
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Appointment confirmed for $pName at ${ShopService.instance.currentBusiness?.name ?? "the clinic"}!'),
-                            backgroundColor: AppColors.primary,
-                            behavior: SnackBarBehavior.floating,
+
+                        showDialog(
+                          context: context,
+                          builder: (dialogCtx) => AlertDialog(
+                            backgroundColor: AppColors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                            title: Column(
+                              children: [
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primaryContainer,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.event_available_rounded,
+                                    color: AppColors.primary,
+                                    size: 34,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                const Text(
+                                  'Booking Confirmed!',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.mainText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Appointment requested for $pName at ${ShopService.instance.currentBusiness?.name ?? "Healthy Paws Clinic"}.\n\nReference: $appointmentRefId',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, height: 1.4),
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogCtx),
+                                child: const Text(
+                                  'Close',
+                                  style: TextStyle(color: AppColors.secondaryText, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(dialogCtx);
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => AppointmentDetailScreen(
+                                        appointmentDocId: appointmentRefId,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                ),
+                                child: const Text('Track Booking', style: TextStyle(fontWeight: FontWeight.w800)),
+                              ),
+                            ],
                           ),
                         );
                       },

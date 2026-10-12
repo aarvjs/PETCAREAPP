@@ -47,7 +47,7 @@ class CartService extends ChangeNotifier {
 
   double get deliveryFee {
     if (_items.isEmpty) return 0.0;
-    return subtotal > 50.0 ? 0.0 : 4.99;
+    return subtotal >= 499.0 ? 0.0 : 49.0;
   }
 
   double get total => subtotal + deliveryFee;

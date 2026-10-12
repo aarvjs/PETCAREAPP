@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/services/shop_service.dart';
+import '../../core/routes/app_routes.dart';
+import 'appointment_detail_screen.dart';
 
 class ClinicServiceItem {
   final String id;
@@ -78,8 +81,22 @@ class _ClinicScreenState extends State<ClinicScreen> {
     ),
   ];
 
-  void _bookService(ClinicServiceItem service) {
-    showDialog(
+  void _bookService(ClinicServiceItem service) async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in with your phone number to book an appointment'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pushNamed(AppRoutes.login);
+      return;
+    }
+
+    final profile = AuthService.instance.currentUserProfile;
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.white,
@@ -89,34 +106,56 @@ class _ClinicScreenState extends State<ClinicScreen> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
         content: Text(
-          'Confirm appointment for ${service.name} at ${ShopService.instance.currentBusiness?.name ?? "Healthy Paws Clinic"}?',
+          'Confirm booking for ${service.name} at ${ShopService.instance.currentBusiness?.name ?? "Healthy Paws Clinic"}?',
           style: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel', style: TextStyle(color: AppColors.secondaryText)),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Appointment request sent for ${service.name}!'),
-                  backgroundColor: AppColors.sageGreen,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.sageGreen,
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Confirm Booking', style: TextStyle(color: AppColors.white)),
+            child: const Text('Confirm Booking'),
           ),
         ],
       ),
     );
+
+    if (confirmed == true && mounted) {
+      try {
+        final refId = await ShopService.instance.bookAppointment(
+          userId: user.uid,
+          customerName: profile?.name ?? 'Valued Pet Parent',
+          customerPhone: profile?.phoneNumber ?? user.phoneNumber ?? '',
+          petName: 'Pet Patient',
+          petType: 'Dog',
+          serviceName: service.name,
+          appointmentDate: 'Tomorrow',
+          appointmentTime: '10:00 AM',
+        );
+
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AppointmentDetailScreen(appointmentDocId: refId),
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to book appointment: $e'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+    }
   }
 
   @override

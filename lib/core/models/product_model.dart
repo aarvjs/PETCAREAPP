@@ -128,6 +128,27 @@ class ProductItem {
     if (data['shelfLife'] != null) specs['Shelf Life'] = data['shelfLife'].toString();
     if (data['countryOfOrigin'] != null) specs['Origin'] = data['countryOfOrigin'].toString();
 
+    // 5. Resolve variants and variant prices
+    final List<String> parsedVariants = [];
+    final Map<String, String> parsedVariantPrices = {};
+
+    if (data['variants'] is List) {
+      for (final v in data['variants'] as List) {
+        if (v is Map) {
+          final vName = (v['value'] ?? v['name'] ?? '').toString();
+          if (vName.isNotEmpty) {
+            parsedVariants.add(vName);
+            if (v['price'] != null) {
+              final vp = v['price'].toString();
+              parsedVariantPrices[vName] = vp.startsWith('₹') ? vp : '₹$vp';
+            }
+          }
+        } else if (v is String && v.isNotEmpty) {
+          parsedVariants.add(v);
+        }
+      }
+    }
+
     return ProductItem(
       id: docId,
       name: data['name'] ?? data['title'] ?? 'Pet Product',
@@ -143,6 +164,8 @@ class ProductItem {
       businessId: data['businessId'],
       isBestSeller: data['isBestSeller'] == true,
       isFeatured: data['isFeatured'] == true,
+      variants: parsedVariants,
+      variantPrices: parsedVariantPrices.isNotEmpty ? parsedVariantPrices : null,
       specifications: specs,
     );
   }
