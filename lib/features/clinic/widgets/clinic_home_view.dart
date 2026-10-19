@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/doctor_model.dart';
+import '../../../core/models/pet_model.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/pet_service.dart';
 import '../../../core/services/shop_service.dart';
 import '../../../core/routes/app_routes.dart';
 import '../appointment_detail_screen.dart';
+import '../pet_registration_screen.dart';
+import '../pet_detail_screen.dart';
 
 class ClinicHomeView extends StatelessWidget {
   final VoidCallback onOpenDrawer;
@@ -494,6 +498,237 @@ class ClinicHomeView extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 20),
+
+          // 3.5 Pet Registration Banner (Requirement 1)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.05),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.app_registration_rounded,
+                      color: AppColors.primary,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Register Your Pet',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.mainText,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Official medical registry & auto-allocated ID.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.secondaryText,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PetRegistrationScreen(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Register',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Stream of My Registered Pets for logged in customer
+          if (AuthService.instance.currentUser != null) ...[
+            StreamBuilder<List<PetModel>>(
+              stream: PetService.instance.streamCustomerPets(AuthService.instance.currentUser!.uid),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                final myPets = snapshot.data!;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'My Registered Pets',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.mainText,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PetRegistrationScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              '+ Add Pet',
+                              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 120,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: myPets.length,
+                        separatorBuilder: (context, index) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final pet = myPets[index];
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PetDetailScreen(pet: pet),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 220,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.white,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: AppColors.border),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(alpha: 0.03),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 52,
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceContainerLow,
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: pet.photoUrl != null && pet.photoUrl!.isNotEmpty
+                                          ? Image.network(
+                                              pet.photoUrl!,
+                                              width: 52,
+                                              height: 52,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.pets_rounded, color: AppColors.primary, size: 24),
+                                            )
+                                          : const Icon(Icons.pets_rounded, color: AppColors.primary, size: 24),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          pet.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.mainText),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${pet.species} • ${pet.breed}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w500),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primaryContainer,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            pet.registrationNumber,
+                                            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.primary),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
           const SizedBox(height: 24),
 
           // 4. Clinical Services Section

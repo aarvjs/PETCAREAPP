@@ -4,6 +4,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/shop_service.dart';
 import '../../core/routes/app_routes.dart';
 import 'appointment_detail_screen.dart';
+import 'pet_registration_screen.dart';
 
 class ClinicServiceItem {
   final String id;
@@ -268,6 +269,74 @@ class _ClinicScreenState extends State<ClinicScreen> {
                   ),
 
                   const SizedBox(height: 16),
+
+                  // Pet Registration Banner
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.05),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.app_registration_rounded, color: AppColors.primary, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                'Register Your Pet',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                  color: AppColors.mainText,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Official registration & certificate number.',
+                                style: TextStyle(fontSize: 11, color: AppColors.secondaryText),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const PetRegistrationScreen()),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          child: const Text('Register', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                        ),
+                      ],
+                    ),
+                  ),
 
                   // Services List
                   Column(

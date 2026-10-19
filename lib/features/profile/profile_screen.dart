@@ -5,6 +5,7 @@ import '../../core/models/user_model.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/shop_service.dart';
+import '../clinic/pet_registration_screen.dart';
 import '../orders/orders_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -241,6 +242,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         },
       },
+      if (ShopService.instance.hasClinic)
+        {
+          'icon': Icons.pets_rounded,
+          'title': 'My Pets & Registration',
+          'subtitle': 'View registered pets & get registration numbers',
+          'action': () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PetRegistrationScreen()),
+            );
+          },
+        },
       {
         'icon': Icons.location_on_rounded,
         'title': 'Delivery Address',

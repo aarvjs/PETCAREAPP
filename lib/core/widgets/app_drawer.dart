@@ -7,6 +7,7 @@ import '../models/business_model.dart';
 import '../routes/app_routes.dart';
 import '../services/auth_service.dart';
 import '../services/shop_service.dart';
+import '../../features/clinic/my_pets_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   final int selectedIndex;
@@ -193,6 +194,85 @@ class AppDrawer extends StatelessWidget {
                       const SizedBox(height: 16),
                       const Divider(color: AppColors.surfaceContainerLow, height: 1),
                       const SizedBox(height: 8),
+
+                      // "My Pets" Dedicated Entry in Drawer
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const MyPetsScreen(),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                              decoration: BoxDecoration(
+                                color: AppColors.softSage.withValues(alpha: 0.65),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppColors.sageGreen.withValues(alpha: 0.35),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.sageGreen,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.pets_rounded,
+                                        size: 18,
+                                        color: AppColors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'My Pets',
+                                          style: TextStyle(
+                                            color: AppColors.mainText,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        Text(
+                                          'View registered pet IDs',
+                                          style: TextStyle(
+                                            color: AppColors.secondaryText,
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 20,
+                                    color: AppColors.sageGreen,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
 
                       // Menu Items
                       Expanded(
