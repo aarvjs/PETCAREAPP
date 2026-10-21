@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/pet_model.dart';
+import '../../core/models/treatment_model.dart';
+import '../../core/services/pet_service.dart';
 import '../../core/services/shop_service.dart';
 
 class PetDetailScreen extends StatelessWidget {
@@ -240,6 +242,116 @@ class PetDetailScreen extends StatelessWidget {
               const SizedBox(height: 24),
             ],
 
+            // Vaccination & Treatment History Section (Requirement 7)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Vaccinations & Treatments',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.mainText),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.shield_outlined, size: 14, color: AppColors.primary),
+                      SizedBox(width: 4),
+                      Text(
+                        'Verified',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            StreamBuilder<List<TreatmentModel>>(
+              stream: PetService.instance.streamPetTreatments(pet.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            'Syncing treatment records...',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                final treatments = snapshot.data ?? [];
+
+                if (treatments.isEmpty) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.vaccines_rounded, color: AppColors.primary, size: 24),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'No Treatments Recorded Yet',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.mainText),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Vaccination and injection records administered by the authorized clinic doctor for ${pet.name} will appear here in real time.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 12, color: AppColors.secondaryText, height: 1.4),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: treatments.map((t) => _buildTreatmentCard(t)).toList(),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+
             // Back to Clinic Button
             SizedBox(
               width: double.infinity,
@@ -258,6 +370,200 @@ class PetDetailScreen extends StatelessWidget {
             const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTreatmentCard(TreatmentModel t) {
+    final hasBooster = t.nextDueDate != null;
+    final isUpcoming = t.isUpcomingBooster;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: t.isVaccine
+                      ? const Color(0xFFDFF7EE)
+                      : AppColors.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  t.isVaccine ? Icons.vaccines_rounded : Icons.medication_rounded,
+                  color: t.isVaccine ? const Color(0xFF35B779) : AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.medicineName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.mainText,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${t.medicineCategory} • ${t.quantityUsed.toStringAsFixed(t.quantityUsed.truncateToDouble() == t.quantityUsed ? 0 : 1)} ${t.unit}${t.dosage.isNotEmpty ? ' (${t.dosage})' : ''}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.secondaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F7F0),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF35B779).withValues(alpha: 0.3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF35B779)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Completed',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF35B779),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(color: AppColors.border, height: 1),
+          const SizedBox(height: 12),
+
+          // Date & Doctor Info
+          Row(
+            children: [
+              const Icon(Icons.event_available_rounded, size: 15, color: AppColors.secondaryText),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Administered: ${t.formattedAdminDate}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mainText),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.person_pin_rounded, size: 15, color: AppColors.secondaryText),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  t.administeredByName.isNotEmpty ? t.administeredByName : 'Doctor',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+
+          // Next Due / Booster Date Banner
+          if (hasBooster) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isUpcoming ? AppColors.primaryContainer : const Color(0xFFFFF4E5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isUpcoming
+                      ? AppColors.primary.withValues(alpha: 0.3)
+                      : const Color(0xFFFF9800).withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isUpcoming ? Icons.notifications_active_rounded : Icons.schedule_rounded,
+                    size: 14,
+                    color: isUpcoming ? AppColors.primary : const Color(0xFFE65100),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isUpcoming
+                          ? 'Next Booster Due: ${t.formattedNextDueDate!}'
+                          : 'Previous Booster Due: ${t.formattedNextDueDate!}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: isUpcoming ? AppColors.primary : const Color(0xFFE65100),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Batch & Clinical Notes
+          if (t.batchNumber.isNotEmpty || t.notes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (t.batchNumber.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(
+                      'Batch: #${t.batchNumber}',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
+                    ),
+                  ),
+                if (t.notes.isNotEmpty)
+                  Expanded(
+                    child: Text(
+                      t.notes,
+                      style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppColors.secondaryText),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -282,9 +588,12 @@ class PetDetailScreen extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: AppColors.primary),
               const SizedBox(width: 6),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -292,6 +601,8 @@ class PetDetailScreen extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.mainText),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),

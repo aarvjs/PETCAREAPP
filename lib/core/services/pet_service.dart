@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import '../models/pet_model.dart';
+import '../models/treatment_model.dart';
 import 'shop_service.dart';
 
 class PetService {
@@ -373,5 +374,31 @@ class PetService {
       debugPrint('[PetService] Error fetching pet $petId: $e');
       return null;
     }
+  }
+
+  /// Streams real-time vaccination and treatment history for a specific registered pet.
+  /// Reads directly from the pet document (which updates in real-time on administration)
+  /// guaranteeing real-time customer visibility and zero permission errors.
+  Stream<List<TreatmentModel>> streamPetTreatments(String petId) {
+    return _firestore.collection('pets').doc(petId).snapshots().map((doc) {
+      final list = <TreatmentModel>[];
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (data['treatments'] is List) {
+          for (final item in (data['treatments'] as List)) {
+            if (item is Map<String, dynamic>) {
+              list.add(TreatmentModel.fromFirestore(item, (item['id'] ?? '').toString()));
+            } else if (item is Map) {
+              final casted = Map<String, dynamic>.from(item);
+              list.add(TreatmentModel.fromFirestore(casted, (casted['id'] ?? '').toString()));
+            }
+          }
+        }
+      }
+
+      // Sort chronologically descending (newest treatments first)
+      list.sort((a, b) => b.administeredAt.compareTo(a.administeredAt));
+      return list;
+    });
   }
 }
