@@ -4,6 +4,8 @@ import '../../core/models/pet_model.dart';
 import '../../core/models/treatment_model.dart';
 import '../../core/services/pet_service.dart';
 import '../../core/services/shop_service.dart';
+import 'appointment_detail_screen.dart';
+import 'book_appointment_screen.dart';
 
 class PetDetailScreen extends StatelessWidget {
   final PetModel pet;
@@ -139,6 +141,34 @@ class PetDetailScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  // Book Appointment CTA Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BookAppointmentScreen(pet: pet),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.calendar_month_rounded, size: 18),
+                      label: const Text(
+                        'Book Clinic Appointment',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.2),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 1,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -241,6 +271,107 @@ class PetDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
             ],
+
+            // Clinic Appointments & Consultations Section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Appointments & Visits',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.mainText),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BookAppointmentScreen(pet: pet),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add_rounded, size: 16, color: AppColors.primary),
+                  label: const Text(
+                    'New Booking',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: PetService.instance.streamPetAppointments(pet.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    ),
+                  );
+                }
+
+                final appointments = snapshot.data ?? [];
+                if (appointments.isEmpty) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.calendar_month_outlined, size: 36, color: AppColors.secondaryText),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'No Appointments Scheduled',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.mainText),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Book a consultation with our veterinary doctor for health checkups, treatments, or vaccinations.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: AppColors.secondaryText, height: 1.4),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BookAppointmentScreen(pet: pet),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                          label: const Text('Book Appointment Now', style: TextStyle(fontWeight: FontWeight.w800)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: appointments.map((apt) => _buildAppointmentCard(context, apt)).toList(),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
 
             // Vaccination & Treatment History Section (Requirement 7)
             Row(
@@ -616,6 +747,461 @@ class PetDetailScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildAppointmentCard(BuildContext context, Map<String, dynamic> apt) {
+    final status = (apt['status'] ?? 'Pending').toString();
+    final aptId = (apt['appointmentId'] ?? apt['id'] ?? '').toString();
+    final date = (apt['appointmentDate'] ?? apt['date'] ?? 'TBD').toString();
+    final time = (apt['appointmentTime'] ?? apt['time'] ?? 'TBD').toString();
+    final doctor = (apt['doctorName'] ?? 'Assigned Doctor').toString();
+    final concern = (apt['concernCategory'] ?? apt['serviceName'] ?? 'Consultation').toString();
+    final isConfirmed = status.toLowerCase() == 'confirmed';
+    final isCompleted = status.toLowerCase() == 'completed';
+    final isCancelled = status.toLowerCase() == 'cancelled';
+
+    Color statusColor = AppColors.primary;
+    Color statusBg = AppColors.primaryContainer;
+    if (isConfirmed) {
+      statusColor = AppColors.successGreen;
+      statusBg = AppColors.successContainer;
+    } else if (isCompleted) {
+      statusColor = const Color(0xFF0284C7);
+      statusBg = const Color(0xFFE0F2FE);
+    } else if (isCancelled) {
+      statusColor = AppColors.errorRed;
+      statusBg = AppColors.errorContainer;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                aptId,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primary,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: statusColor,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(Icons.event_rounded, size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                '$date • $time',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.mainText),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.medical_services_outlined, size: 16, color: AppColors.secondaryText),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '$concern • $doctor',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          if (apt['symptoms'] != null && (apt['symptoms'] as String).isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Symptoms: ${apt['symptoms']}',
+                style: const TextStyle(fontSize: 11, color: AppColors.mainText),
+              ),
+            ),
+          ],
+          if (isCancelled && apt['rejectionReason'] != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.errorContainer,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Clinic Notice: ${apt['rejectionReason']}',
+                style: const TextStyle(fontSize: 11, color: AppColors.errorRed, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          const Divider(color: AppColors.borderLight, height: 1),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AppointmentDetailScreen(
+                        appointmentDocId: (apt['id'] ?? '').toString(),
+                        initialData: apt,
+                      ),
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                child: const Row(
+                  children: [
+                    Text(
+                      'View Booking Details',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary),
+                    ),
+                    Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.primary),
+                  ],
+                ),
+              ),
+              if (isCompleted)
+                ElevatedButton.icon(
+                  onPressed: () => _showPrescriptionSheet(context, apt),
+                  icon: const Icon(Icons.description_outlined, size: 14),
+                  label: const Text('Prescription (PDF)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0284C7),
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    elevation: 0,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPrescriptionSheet(BuildContext context, Map<String, dynamic> apt) {
+    final treatment = (apt['treatment'] is Map)
+        ? Map<String, dynamic>.from(apt['treatment'] as Map)
+        : <String, dynamic>{};
+
+    final doctor = (treatment['doctorName'] ?? apt['doctorName'] ?? 'Dr. Ashwani Kumar Singh').toString();
+    final doctorReg = (treatment['doctorRegdNo'] ?? 'UPVC 6394').toString();
+    final doctorQual = (treatment['doctorQualifications'] ?? 'B.V.Sc & A.H (RAJUVAS Bikaner)').toString();
+    final temp = (treatment['temperature'] ?? '').toString();
+    final weight = (treatment['weight'] ?? '').toString();
+    final signs = (treatment['clinicalSigns'] ?? '').toString();
+    final diagnosis = (treatment['diagnosis'] ?? apt['diagnosis'] ?? 'Clinical examination').toString();
+    final advice = (treatment['advice'] ?? 'Routine care & rest').toString();
+    final nextVisit = (treatment['nextVisitDate'] ?? apt['nextVisitDate'] ?? '').toString();
+
+    final administered = (treatment['administeredItems'] is List) ? (treatment['administeredItems'] as List) : [];
+    final prescribed = (treatment['prescribedItems'] is List) ? (treatment['prescribedItems'] as List) : [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.88,
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Header: Clinic & Doctor
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Healthy Paws Pet Clinic',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.mainText),
+                    ),
+                    Text(
+                      'Official Clinical Prescription Report (PDF Slip)',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF0284C7)),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const Divider(color: AppColors.border, height: 20),
+
+            // Scrollable Clinical Content
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Doctor Details
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.verified_user_rounded, color: Color(0xFF0284C7), size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(doctor,
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.mainText)),
+                                Text('$doctorQual • Regd No: $doctorReg',
+                                    style: const TextStyle(fontSize: 11, color: AppColors.secondaryText)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Patient Bar
+                    Text(
+                      'Patient: ${pet.name} (${pet.breed}) • Age: ${pet.ageDisplay} • ${pet.gender}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Vitals Grid
+                    const Text('Clinical Examination & Vitals',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.mainText)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        children: [
+                          if (temp.isNotEmpty) _buildPrescriptionRow('Temperature', temp),
+                          if (weight.isNotEmpty) _buildPrescriptionRow('Weight', weight),
+                          if (signs.isNotEmpty) _buildPrescriptionRow('Clinical Signs', signs),
+                          _buildPrescriptionRow('Diagnosis', diagnosis, isBold: true),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Rx Injections
+                    if (administered.isNotEmpty) ...[
+                      const Text('Rx - Administered Treatments & Injections',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.mainText)),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          children: administered.map((item) {
+                            final name = (item is Map) ? (item['name'] ?? 'Medicine').toString() : 'Medicine';
+                            final dosage = (item is Map) ? (item['dosage'] ?? '').toString() : '';
+                            final route = (item is Map) ? (item['route'] ?? 'IM').toString() : 'IM';
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.check_circle_outline_rounded, size: 14, color: AppColors.successGreen),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text('Inj. $name $dosage $route',
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Take-Home Prescriptions
+                    if (prescribed.isNotEmpty) ...[
+                      const Text('Take-Home Prescribed Medications',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.mainText)),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          children: prescribed.map((item) {
+                            final name = (item is Map) ? (item['name'] ?? 'Medicine').toString() : 'Medicine';
+                            final dosage = (item is Map) ? (item['dosage'] ?? '').toString() : '';
+                            final inst = (item is Map) ? (item['instructions'] ?? '').toString() : '';
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.medication_outlined, size: 16, color: Color(0xFF0284C7)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('$name ($dosage)',
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                                        if (inst.isNotEmpty)
+                                          Text(inst, style: const TextStyle(fontSize: 11, color: AppColors.secondaryText)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Advice & Next Visit
+                    const Text('Clinical Advice & Follow-Up',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.mainText)),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Advice: $advice', style: const TextStyle(fontSize: 12, height: 1.4)),
+                          if (nextVisit.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text('Next Visit Due: $nextVisit',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF0284C7))),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Legal Disclaimer
+                    const Text(
+                      'Disclaimer: This prescription is issued based on clinical judgment and available investigations. Follow-up evaluation is advised as recommended.',
+                      style: TextStyle(fontSize: 10, color: AppColors.secondaryText, fontStyle: FontStyle.italic, height: 1.3),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrescriptionRow(String label, String value, {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.secondaryText, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isBold ? FontWeight.w900 : FontWeight.w700,
+                color: isBold ? const Color(0xFF0284C7) : AppColors.mainText,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -628,12 +1214,20 @@ class PetDetailScreen extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.secondaryText,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
                 value.isNotEmpty ? value : 'Not provided',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.mainText),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.mainText,
+                ),
               ),
             ],
           ),

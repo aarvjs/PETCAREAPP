@@ -4,6 +4,7 @@ import '../../core/models/pet_model.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/pet_service.dart';
+import 'book_appointment_screen.dart';
 import 'pet_detail_screen.dart';
 import 'pet_registration_screen.dart';
 
@@ -360,6 +361,33 @@ class MyPetsScreen extends StatelessWidget {
                           _buildMiniChip(pet.gender),
                           _buildMiniChip(pet.coatColour),
                         ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Book Appointment CTA
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BookAppointmentScreen(pet: pet),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.calendar_month_rounded, size: 14),
+                        label: const Text(
+                          'Book Appointment',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 0,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                       ),
                     ],
                   ),

@@ -24,6 +24,7 @@ class DoctorModel {
   });
 
   bool get isActive => status.toLowerCase() == 'active';
+  String get name => fullName;
 
   factory DoctorModel.fromFirestore(Map<String, dynamic> data, String docId) {
     return DoctorModel(

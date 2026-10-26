@@ -157,6 +157,12 @@ service cloud.firestore {
       allow delete: if isSuperAdmin() || isAdmin();
     }
 
+    // ---------- DOCTOR SCHEDULES ----------
+    match /doctor_schedules/{doctorId} {
+      allow read: if true;
+      allow write: if isStaff() || (signedIn() && request.auth.uid == doctorId);
+    }
+
     // ---------- SERVICES ----------
     match /services/{serviceId} {
       allow read: if true;
@@ -181,7 +187,10 @@ service cloud.firestore {
         );
 
       allow create: if signedIn()
-        && request.resource.data.userId == request.auth.uid;
+        && (
+          request.resource.data.userId == request.auth.uid
+          || isStaff()
+        );
 
       allow update: if isAdmin()
         || isSuperAdmin()
@@ -241,15 +250,24 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin() || isSuperAdmin();
     }
 
-    // ---------- NOTIFICATIONS ----------
-    match /notifications/{notificationId} {
-      allow read: if signedIn()
-        && (
-          isStaff()
-          || resource.data.userId == request.auth.uid
-        );
+    // ---------- DOCTOR SCHEDULES ----------
+    match /doctor_schedules/{doctorId} {
+      allow read: if true;
+      allow write: if isStaff() || (signedIn() && request.auth.uid == doctorId);
+    }
 
-      allow create, update, delete: if isAdmin() || isSuperAdmin();
+    // ---------- CLINIC INVENTORY ----------
+    match /clinic_inventory/{itemId} {
+      allow read: if true;
+      allow create, update: if isStaff();
+      allow delete: if isAdmin() || isSuperAdmin();
+    }
+
+    // ---------- TREATMENTS & VACCINATION HISTORY ----------
+    match /treatments/{treatmentId} {
+      allow read: if true;
+      allow create, update: if isStaff();
+      allow delete: if isAdmin() || isSuperAdmin();
     }
 
     // ---------- DEFAULT DENY ----------

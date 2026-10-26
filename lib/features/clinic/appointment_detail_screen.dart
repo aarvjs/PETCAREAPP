@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
+import 'prescription_view_screen.dart';
 
 class AppointmentDetailScreen extends StatelessWidget {
   final String appointmentDocId;
@@ -317,7 +318,9 @@ class AppointmentDetailScreen extends StatelessWidget {
                               ? 'Your booking is awaiting clinic confirmation. Changes made by the doctor will appear here live.'
                               : (isConfirmed
                                   ? 'Your appointment has been confirmed by the clinic. Please arrive 10 minutes before your slot.'
-                                  : 'This appointment consultation has been ${status.toLowerCase()}.'),
+                                  : (isCompleted
+                                      ? 'Consultation completed. The doctor has recorded the clinical treatment and issued the prescription.'
+                                      : 'This appointment consultation has been ${status.toLowerCase()}.')),
                           style: const TextStyle(
                             color: AppColors.mainText,
                             fontSize: 12,
@@ -329,10 +332,75 @@ class AppointmentDetailScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                // Rejection / Cancellation Reason Card
+                if (isCancelled && (data['rejectionReason'] != null || data['cancelReason'] != null)) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorContainer,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.errorRed.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.cancel_outlined, color: AppColors.errorRed, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Clinic Notice / Reason',
+                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppColors.errorRed),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          (data['rejectionReason'] ?? data['cancelReason']).toString(),
+                          style: const TextStyle(fontSize: 12, color: AppColors.mainText, height: 1.4),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Completed Consultation: View Prescription Button
+                if (isCompleted) ...[
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showPrescriptionBottomSheet(context, data),
+                      icon: const Icon(Icons.description_rounded, size: 20),
+                      label: const Text(
+                        'View Prescription & Treatment Report',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0284C7),
+                        foregroundColor: AppColors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 1,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showPrescriptionBottomSheet(BuildContext context, Map<String, dynamic> apt) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PrescriptionViewScreen(appointmentData: apt),
       ),
     );
   }
