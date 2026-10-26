@@ -6,11 +6,19 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/pet_service.dart';
 import '../../core/services/shop_service.dart';
 import 'appointment_detail_screen.dart';
+import 'pet_registration_screen.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
-  final PetModel pet;
+  final PetModel? pet;
+  final String? preSelectedService;
+  final double? servicePrice;
 
-  const BookAppointmentScreen({super.key, required this.pet});
+  const BookAppointmentScreen({
+    super.key,
+    this.pet,
+    this.preSelectedService,
+    this.servicePrice,
+  });
 
   @override
   State<BookAppointmentScreen> createState() => _BookAppointmentScreenState();
@@ -26,6 +34,11 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   DoctorModel? _selectedDoctor;
   List<DoctorModel> _clinicDoctors = [];
+
+  // Patient Pet Selection
+  PetModel? _selectedPet;
+  List<PetModel> _myPets = [];
+  bool _isLoadingPets = false;
 
   // Primary Concern & Symptoms
   String _selectedCategory = 'General Health Checkup';
@@ -64,7 +77,15 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     super.initState();
     final now = DateTime.now();
     _displayedMonth = DateTime(now.year, now.month, 1);
-    _reasonController = TextEditingController(text: _selectedCategory);
+    
+    _selectedPet = widget.pet;
+    if (widget.preSelectedService != null && widget.preSelectedService!.trim().isNotEmpty) {
+      _selectedCategory = widget.preSelectedService!.trim();
+      _reasonController = TextEditingController(text: _selectedCategory);
+    } else {
+      _reasonController = TextEditingController(text: _selectedCategory);
+    }
+
     _loadInitialData();
   }
 
@@ -80,9 +101,17 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     final user = AuthService.instance.currentUser;
     final profile = AuthService.instance.currentUserProfile;
 
-    _ownerName = (profile?.name ?? user?.displayName ?? widget.pet.ownerName).toString();
-    _ownerPhone = (profile?.phoneNumber ?? user?.phoneNumber ?? widget.pet.contactNumber).toString();
-    _ownerAddress = (profile?.address ?? widget.pet.ownerAddress).toString();
+    if (widget.pet != null) {
+      _selectedPet = widget.pet;
+      _ownerName = (profile?.name ?? user?.displayName ?? widget.pet!.ownerName).toString();
+      _ownerPhone = (profile?.phoneNumber ?? user?.phoneNumber ?? widget.pet!.contactNumber).toString();
+      _ownerAddress = (profile?.address ?? widget.pet!.ownerAddress).toString();
+    } else {
+      _ownerName = (profile?.name ?? user?.displayName ?? '').toString();
+      _ownerPhone = (profile?.phoneNumber ?? user?.phoneNumber ?? '').toString();
+      _ownerAddress = (profile?.address ?? '').toString();
+      _fetchUserPets();
+    }
 
     // Load Doctors for this clinic
     final shopService = ShopService.instance;
@@ -111,6 +140,29 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     _fetchSlotsForDate(_selectedDate);
   }
 
+  Future<void> _fetchUserPets() async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) return;
+    setState(() => _isLoadingPets = true);
+    try {
+      final pets = await PetService.instance.getCustomerPets(user.uid);
+      if (mounted) {
+        setState(() {
+          _myPets = pets;
+          _isLoadingPets = false;
+          if (_selectedPet == null && pets.isNotEmpty) {
+            _selectedPet = pets.first;
+            if (_ownerName.isEmpty) _ownerName = pets.first.ownerName;
+            if (_ownerPhone.isEmpty) _ownerPhone = pets.first.contactNumber;
+            if (_ownerAddress.isEmpty) _ownerAddress = pets.first.ownerAddress;
+          }
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingPets = false);
+    }
+  }
+
   Future<void> _fetchSlotsForDate(DateTime date) async {
     setState(() {
       _selectedDate = date;
@@ -134,6 +186,13 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   }
 
   Future<void> _handleBookAppointment() async {
+    if (_selectedPet == null) {
+      setState(() {
+        _errorMessage = 'Please select or register a pet before submitting an appointment.';
+      });
+      return;
+    }
+
     final finalConcern = _reasonController.text.trim().isNotEmpty
         ? _reasonController.text.trim()
         : _selectedCategory;
@@ -171,13 +230,13 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
     try {
       final docId = await PetService.instance.bookPetAppointment(
-        petId: widget.pet.id,
-        petName: widget.pet.name,
-        petRegistrationNumber: widget.pet.registrationNumber,
-        breed: widget.pet.breed,
-        petType: widget.pet.species,
-        age: widget.pet.dob.isNotEmpty ? widget.pet.ageDisplay : 'Adult',
-        gender: widget.pet.gender,
+        petId: _selectedPet!.id,
+        petName: _selectedPet!.name,
+        petRegistrationNumber: _selectedPet!.registrationNumber,
+        breed: _selectedPet!.breed,
+        petType: _selectedPet!.species,
+        age: _selectedPet!.dob.isNotEmpty ? _selectedPet!.ageDisplay : 'Adult',
+        gender: _selectedPet!.gender,
         userId: user.uid,
         customerName: _ownerName.isNotEmpty ? _ownerName : 'Pet Parent',
         customerPhone: _ownerPhone.isNotEmpty ? _ownerPhone : 'N/A',
@@ -217,7 +276,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Your consultation request for ${widget.pet.name} on $dateStr at $_selectedTimeSlot has been scheduled with the clinic.',
+                'Your consultation request for ${_selectedPet!.name} on $dateStr at $_selectedTimeSlot has been scheduled with the clinic.',
                 style: const TextStyle(fontSize: 13, color: AppColors.mainText, height: 1.4),
               ),
               const SizedBox(height: 12),
@@ -368,8 +427,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Pet Profile Card
-            _buildPetProfileCard(clinicName),
+            // 1. Patient Pet Selection
+            widget.pet != null
+                ? _buildPetProfileCard(clinicName, widget.pet!)
+                : _buildPetSelectionSection(clinicName),
             const SizedBox(height: 16),
 
             // Error Banner
@@ -497,7 +558,233 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     );
   }
 
-  Widget _buildPetProfileCard(String clinicName) {
+  Widget _buildPetSelectionSection(String clinicName) {
+    if (_isLoadingPets) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Loading your registered pets...',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_myPets.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFDF7F7),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFF5D6D6)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFECEC),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.pets_rounded, color: AppColors.errorRed, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'No Registered Pets Found',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.mainText),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'A registered patient profile is required for clinic consultations.',
+                        style: TextStyle(fontSize: 11, color: AppColors.secondaryText),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PetRegistrationScreen()),
+                  ).then((_) => _fetchUserPets());
+                },
+                icon: const Icon(Icons.app_registration_rounded, size: 16),
+                label: const Text('Register Your Pet Now', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Select Patient Pet',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.mainText),
+            ),
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PetRegistrationScreen()),
+                ).then((_) => _fetchUserPets());
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_circle_outline_rounded, size: 14, color: AppColors.primary),
+                    SizedBox(width: 4),
+                    Text(
+                      'Add New Pet',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 84,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _myPets.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 10),
+            itemBuilder: (ctx, index) {
+              final p = _myPets[index];
+              final isSelected = _selectedPet?.id == p.id;
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _selectedPet = p;
+                    _ownerName = p.ownerName;
+                    _ownerPhone = p.contactNumber;
+                    _ownerAddress = p.ownerAddress;
+                  });
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: 190,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFF3EFFF) : AppColors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.border,
+                      width: isSelected ? 1.6 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: p.photoUrl != null && p.photoUrl!.isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(p.photoUrl!, fit: BoxFit.cover),
+                              )
+                            : const Icon(Icons.pets_rounded, size: 20, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p.name,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                color: isSelected ? AppColors.primary : AppColors.mainText,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '${p.species} • ${p.breed}',
+                              style: const TextStyle(fontSize: 10, color: AppColors.secondaryText),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              p.registrationNumber,
+                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPetProfileCard(String clinicName, [PetModel? customPet]) {
+    final pet = customPet ?? _selectedPet ?? widget.pet;
+    if (pet == null) return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -522,10 +809,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
             ),
-            child: widget.pet.photoUrl != null && widget.pet.photoUrl!.isNotEmpty
+            child: pet.photoUrl != null && pet.photoUrl!.isNotEmpty
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: Image.network(widget.pet.photoUrl!, fit: BoxFit.cover),
+                    child: Image.network(pet.photoUrl!, fit: BoxFit.cover),
                   )
                 : const Icon(Icons.pets_rounded, color: AppColors.primary, size: 28),
           ),
@@ -537,7 +824,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 Row(
                   children: [
                     Text(
-                      widget.pet.name,
+                      pet.name,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
@@ -564,7 +851,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${widget.pet.species} • ${widget.pet.breed} • ${widget.pet.gender}',
+                  '${pet.species} • ${pet.breed} • ${pet.gender}',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -578,7 +865,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        clinicName,
+                        '$clinicName (${pet.registrationNumber})',
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -1322,6 +1609,23 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           ),
           const Divider(color: AppColors.borderLight, height: 16),
           _buildSummaryRow(Icons.help_outline_rounded, 'Reason', activeReason),
+          if (_selectedPet != null) ...[
+            const Divider(color: AppColors.borderLight, height: 16),
+            _buildSummaryRow(
+              Icons.pets_rounded,
+              'Patient Pet',
+              '${_selectedPet!.name} (${_selectedPet!.species} • ${_selectedPet!.registrationNumber})',
+            ),
+          ],
+          if (widget.servicePrice != null && widget.servicePrice! > 0) ...[
+            const Divider(color: AppColors.borderLight, height: 16),
+            _buildSummaryRow(
+              Icons.payments_outlined,
+              'Service Fee',
+              '₹${widget.servicePrice!.toStringAsFixed(0)}',
+              isHighlighted: true,
+            ),
+          ],
           const Divider(color: AppColors.borderLight, height: 16),
           _buildSummaryRow(Icons.account_circle_outlined, 'Pet Parent', '$_ownerName ($_ownerPhone)'),
         ],

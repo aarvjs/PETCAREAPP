@@ -5,6 +5,7 @@ import '../config/app_config.dart';
 import '../models/business_model.dart';
 import '../models/doctor_model.dart';
 import '../models/product_model.dart';
+import '../models/service_model.dart';
 
 /// Resolution state of the active tenant business
 enum ShopResolutionState {
@@ -380,5 +381,34 @@ class ShopService extends ChangeNotifier {
     // Also store doc id on the record
     await docRef.update({'id': docRef.id});
     return docRef.id;
+  }
+
+  /// Real-time stream of active, published clinic services for the current business
+  Stream<List<ServiceModel>> streamServices() {
+    final bizId = _currentBusiness?.id ?? '';
+    final targetShopId = configuredShopId.trim();
+
+    return _firestore
+        .collection('services')
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs
+              .map((doc) => ServiceModel.fromFirestore(doc.data(), doc.id))
+              .where((s) {
+                if (!s.isActive) return false;
+                if (bizId.isNotEmpty && s.businessId.isNotEmpty) {
+                  return s.businessId == bizId;
+                }
+                if (targetShopId.isNotEmpty && s.shopId.isNotEmpty) {
+                  return s.shopId == targetShopId;
+                }
+                return true;
+              })
+              .toList();
+
+          // Sort by name
+          list.sort((a, b) => a.name.compareTo(b.name));
+          return list;
+        });
   }
 }

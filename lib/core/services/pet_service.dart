@@ -365,6 +365,17 @@ class PetService {
     });
   }
 
+  /// Fetches registered pets list for the specified owner
+  Future<List<PetModel>> getCustomerPets(String ownerId) async {
+    try {
+      final list = await streamCustomerPets(ownerId).first;
+      return list;
+    } catch (e) {
+      debugPrint('[PetService] Error fetching customer pets: $e');
+      return [];
+    }
+  }
+
   /// Fetches a single pet by document ID
   Future<PetModel?> getPetById(String petId) async {
     try {
