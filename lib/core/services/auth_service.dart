@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
+import 'pet_service.dart';
 
 class AuthService {
   AuthService._();
@@ -184,6 +185,13 @@ class AuthService {
 
         final profile = UserModel.fromMap(data, snapshot.id);
         _currentUserProfile = profile;
+
+        // Securely claim any offline walk-in records for this verified phone number
+        PetService.instance.claimOfflinePatientRecords(
+          uid: uid,
+          phoneNumber: formattedPhone,
+        );
+
         return profile;
       } else {
         final initialData = {
@@ -204,6 +212,13 @@ class AuthService {
           profileSkipped: false,
         );
         _currentUserProfile = profile;
+
+        // Securely claim any offline walk-in records for this verified phone number
+        PetService.instance.claimOfflinePatientRecords(
+          uid: uid,
+          phoneNumber: formattedPhone,
+        );
+
         return profile;
       }
     } catch (e) {

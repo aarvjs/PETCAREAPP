@@ -20,6 +20,12 @@ class TreatmentModel {
   final DateTime? nextDueDate;
   final String notes;
   final DateTime? createdAt;
+  final String? vaccineBrand;
+  final String? doseNumber;
+  final int? totalDoses;
+  final int? dosesAdministered;
+  final int? dosesRemaining;
+  final String? scheduleStatus;
 
   const TreatmentModel({
     required this.id,
@@ -41,6 +47,12 @@ class TreatmentModel {
     this.nextDueDate,
     required this.notes,
     this.createdAt,
+    this.vaccineBrand,
+    this.doseNumber,
+    this.totalDoses,
+    this.dosesAdministered,
+    this.dosesRemaining,
+    this.scheduleStatus,
   });
 
   factory TreatmentModel.fromFirestore(Map<String, dynamic> data, String docId) {
@@ -89,10 +101,30 @@ class TreatmentModel {
       nextDueDate: parseNullableDate(data['nextDueDate']),
       notes: (data['notes'] ?? '').toString(),
       createdAt: parseNullableDate(data['createdAt']),
+      vaccineBrand: data['vaccineBrand']?.toString(),
+      doseNumber: data['doseNumber']?.toString(),
+      totalDoses: data['totalDoses'] is num
+          ? (data['totalDoses'] as num).toInt()
+          : int.tryParse(data['totalDoses']?.toString() ?? ''),
+      dosesAdministered: data['dosesAdministered'] is num
+          ? (data['dosesAdministered'] as num).toInt()
+          : int.tryParse(data['dosesAdministered']?.toString() ?? ''),
+      dosesRemaining: data['dosesRemaining'] is num
+          ? (data['dosesRemaining'] as num).toInt()
+          : int.tryParse(data['dosesRemaining']?.toString() ?? ''),
+      scheduleStatus: data['scheduleStatus']?.toString(),
     );
   }
 
-  bool get isVaccine => medicineCategory.toLowerCase() == 'vaccine';
+  bool get isVaccine =>
+      medicineCategory.toLowerCase().contains('vaccin') ||
+      medicineName.toLowerCase().contains('vaccin') ||
+      medicineName.toLowerCase().contains('9 in 1') ||
+      medicineName.toLowerCase().contains('7 in 1') ||
+      medicineName.toLowerCase().contains('rabies');
+
+  bool get hasRemainingDoses => dosesRemaining != null && dosesRemaining! > 0;
+  bool get isSeriesComplete => dosesRemaining == 0;
 
   bool get isUpcomingBooster {
     if (nextDueDate == null) return false;

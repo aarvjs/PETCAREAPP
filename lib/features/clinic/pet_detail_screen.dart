@@ -567,6 +567,51 @@ class PetDetailScreen extends StatelessWidget {
                         color: AppColors.secondaryText,
                       ),
                     ),
+                    if (t.isVaccine && (t.doseNumber != null || t.vaccineBrand != null)) ...[
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (t.doseNumber != null && t.doseNumber!.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1EEFF),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                              ),
+                              child: Text(
+                                t.totalDoses != null
+                                    ? '${t.doseNumber} of ${t.totalDoses}'
+                                    : t.doseNumber!,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          if (t.vaccineBrand != null && t.vaccineBrand!.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceContainerLow,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Text(
+                                'Brand: ${t.vaccineBrand}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.secondaryText,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -648,15 +693,33 @@ class PetDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      isUpcoming
-                          ? 'Next Booster Due: ${t.formattedNextDueDate!}'
-                          : 'Previous Booster Due: ${t.formattedNextDueDate!}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: isUpcoming ? AppColors.primary : const Color(0xFFE65100),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isUpcoming
+                              ? 'Next Booster Due: ${t.formattedNextDueDate!}'
+                              : 'Previous Booster Due: ${t.formattedNextDueDate!}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: isUpcoming ? AppColors.primary : const Color(0xFFE65100),
+                          ),
+                        ),
+                        if (t.dosesRemaining != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            t.dosesRemaining == 0
+                                ? 'Vaccination series completed'
+                                : '${t.dosesRemaining} dose${t.dosesRemaining == 1 ? '' : 's'} remaining in series',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: isUpcoming ? AppColors.primary.withValues(alpha: 0.8) : const Color(0xFFE65100),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],

@@ -680,4 +680,73 @@ class PetService {
     final ref = await _firestore.collection('appointments').add(appointmentData);
     return ref.id;
   }
+
+  /// Securely claims offline walk-in patient pet and appointment records
+  /// created for the patient's phone number before they installed the mobile app.
+  /// Uses the verified user's UID and phone number.
+  Future<void> claimOfflinePatientRecords({
+    required String uid,
+    required String phoneNumber,
+  }) async {
+    if (uid.isEmpty || phoneNumber.isEmpty) return;
+
+    try {
+      final cleanDigits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+      final last10Digits = cleanDigits.length >= 10
+          ? cleanDigits.substring(cleanDigits.length - 10)
+          : cleanDigits;
+      final normalizedPhone = '+91$last10Digits';
+
+      // 1. Claim unclaimed pets registered under this phone number
+      final unclaimedPetsSnap = await _firestore
+          .collection('pets')
+          .where('contactNumber', isEqualTo: normalizedPhone)
+          .where('isUnclaimed', isEqualTo: true)
+          .get();
+
+      if (unclaimedPetsSnap.docs.isNotEmpty) {
+        final batch = _firestore.batch();
+        for (final doc in unclaimedPetsSnap.docs) {
+          batch.update(doc.reference, {
+            'ownerId': uid,
+            'isUnclaimed': false,
+            'claimedAt': FieldValue.serverTimestamp(),
+            'auditHistory': FieldValue.arrayUnion([
+              {
+                'action': 'claimed_by_verified_user',
+                'claimedByUid': uid,
+                'phone': normalizedPhone,
+                'timestamp': DateTime.now().toIso8601String(),
+              }
+            ]),
+          });
+        }
+        await batch.commit();
+        debugPrint('[PetService] Successfully claimed ${unclaimedPetsSnap.docs.length} offline pet profile(s) for $normalizedPhone');
+      }
+
+      // 2. Claim unclaimed walk-in appointments for this phone number
+      final unclaimedAptsSnap = await _firestore
+          .collection('appointments')
+          .where('customerPhone', isEqualTo: normalizedPhone)
+          .where('isUnclaimed', isEqualTo: true)
+          .get();
+
+      if (unclaimedAptsSnap.docs.isNotEmpty) {
+        final batch = _firestore.batch();
+        for (final doc in unclaimedAptsSnap.docs) {
+          batch.update(doc.reference, {
+            'userId': uid,
+            'isUnclaimed': false,
+            'claimedAt': FieldValue.serverTimestamp(),
+          });
+        }
+        await batch.commit();
+        debugPrint('[PetService] Successfully claimed ${unclaimedAptsSnap.docs.length} offline appointment(s) for $normalizedPhone');
+      }
+    } catch (e) {
+      debugPrint('[PetService] Claim offline records non-fatal note: $e');
+    }
+  }
 }
+

@@ -184,6 +184,7 @@ service cloud.firestore {
         && (
           isStaff()
           || resource.data.userId == request.auth.uid
+          || (resource.data.isUnclaimed == true && resource.data.customerPhone == request.auth.token.phone_number)
         );
 
       allow create: if signedIn()
@@ -205,6 +206,13 @@ service cloud.firestore {
               'updatedAt',
               'cancelReason'
             ])
+        )
+        || (
+          signedIn()
+          && resource.data.isUnclaimed == true
+          && resource.data.customerPhone == request.auth.token.phone_number
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.isUnclaimed == false
         );
 
       allow delete: if isAdmin() || isSuperAdmin();
@@ -215,11 +223,13 @@ service cloud.firestore {
       allow read: if isStaff()
         || (
           signedIn()
-          && resource.data.ownerId == request.auth.uid
+          && (
+            resource.data.ownerId == request.auth.uid
+            || (resource.data.isUnclaimed == true && resource.data.contactNumber == request.auth.token.phone_number)
+          )
         );
 
-      allow create: if signedIn()
-        && request.resource.data.ownerId == request.auth.uid;
+      allow create: if (signedIn() && request.resource.data.ownerId == request.auth.uid) || isStaff();
 
       allow update: if isAdmin()
         || isSuperAdmin()
@@ -228,6 +238,13 @@ service cloud.firestore {
           signedIn()
           && resource.data.ownerId == request.auth.uid
           && request.resource.data.ownerId == resource.data.ownerId
+        )
+        || (
+          signedIn()
+          && resource.data.isUnclaimed == true
+          && resource.data.contactNumber == request.auth.token.phone_number
+          && request.resource.data.ownerId == request.auth.uid
+          && request.resource.data.isUnclaimed == false
         );
 
       allow delete: if isAdmin()
